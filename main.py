@@ -1,6 +1,7 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from pydantic import BaseModel
 from typing import List, Optional
+import json
 
 app = FastAPI()
 
@@ -8,7 +9,7 @@ class QuizEntry(BaseModel):
     row_number: Optional[int]
     Question_type: str
     Topic: str
-    Difficulty_: Optional[str]
+    Difficulty: Optional[str]
     Question_text: str
     Keyword: Optional[str]
     Hint: Optional[str]
@@ -24,14 +25,20 @@ class QuizEntry(BaseModel):
     answer_mp3: Optional[str]
     explanation_mp3: Optional[str]
     images_file: Optional[str]
-
-# ⬇️ 여기서 "data" 키를 포함하는 구조로 받아들임
-class QuizPayload(BaseModel):
-    data: List[QuizEntry]
+    use: Optional[str]
 
 @app.post("/generate-video")
-async def generate_video(payload: QuizPayload):
-    for entry in payload.data:
+async def generate_video(request: Request):
+    data = await request.json()
+
+    # Check if the payload uses "body" key
+    if "body" in data and isinstance(data["body"], list):
+        entries = [QuizEntry(**entry) for entry in data["body"]]
+    else:
+        return {"error": "Invalid format: expected `body` with a list of quiz items."}
+
+    for entry in entries:
         print(f"🎬 Generating video for row {entry.row_number}: {entry.Question_text}")
-        # generate_video_ffmpeg(entry)
-    return {"status": "processing started", "count": len(payload.data)}
+        # generate_video_ffmpeg(entry)  # your real function
+
+    return {"status": "processing started", "count": len(entries)}
