@@ -33,3 +33,8 @@ async def generate_video(entries: List[QuizEntry]):
         # 여기서 FFmpeg 영상 생성 함수 호출
         # generate_video_ffmpeg(entry)
     return {"status": "processing started", "count": len(entries)}
+
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=int(os.environ.get("PORT", 8080)))
