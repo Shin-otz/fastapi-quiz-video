@@ -1,7 +1,6 @@
-from fastapi import FastAPI, Request
+from fastapi import FastAPI
 from pydantic import BaseModel
 from typing import List, Optional
-import os
 
 app = FastAPI()
 
@@ -26,15 +25,13 @@ class QuizEntry(BaseModel):
     explanation_mp3: Optional[str]
     images_file: Optional[str]
 
+# ⬇️ 여기서 "data" 키를 포함하는 구조로 받아들임
+class QuizPayload(BaseModel):
+    data: List[QuizEntry]
+
 @app.post("/generate-video")
-async def generate_video(entries: List[QuizEntry]):
-    for entry in entries:
+async def generate_video(payload: QuizPayload):
+    for entry in payload.data:
         print(f"🎬 Generating video for row {entry.row_number}: {entry.Question_text}")
-        # 여기서 FFmpeg 영상 생성 함수 호출
         # generate_video_ffmpeg(entry)
-    return {"status": "processing started", "count": len(entries)}
-
-
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=int(os.environ.get("PORT", 8080)))
+    return {"status": "processing started", "count": len(payload.data)}
