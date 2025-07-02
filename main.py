@@ -25,7 +25,7 @@ async def generate_one(item: QuestionItem):
         "status": "ok",
         "question": item.question,
         "answer": item.answer,
-        "background_url": item.background_url
+        "background_url": item.background_url,
         "hint": item.hint
     }
 
