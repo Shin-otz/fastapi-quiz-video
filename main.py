@@ -6,6 +6,7 @@ app = FastAPI()
 class QuestionItem(BaseModel):
     question_type: str
     topic: str
+    key_term: str
     question: str
     hint: str
     answer: str
@@ -23,6 +24,7 @@ async def generate_one(item: QuestionItem):
         "status": "ok",
         "question": item.question,
         "answer": item.answer,
+        "key_term": item.key_term,
         "background_url": item.background_url,
         "hint": item.hint
     }
