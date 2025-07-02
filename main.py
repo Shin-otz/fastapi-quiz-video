@@ -4,7 +4,11 @@ import uvicorn
 app = FastAPI()
 
 class QuestionItem(BaseModel):
+    question_type: str
+    topic: str
     question: str
+    keyword: str
+    hint: str
     answer: str
     background_url: str
     image_url: str
@@ -22,6 +26,7 @@ async def generate_one(item: QuestionItem):
         "question": item.question,
         "answer": item.answer,
         "background_url": item.background_url
+        "hint": item.hint
     }
 
 
