@@ -7,7 +7,6 @@ class QuestionItem(BaseModel):
     question_type: str
     topic: str
     question: str
-    keyword: str
     hint: str
     answer: str
     background_url: str
@@ -15,7 +14,6 @@ class QuestionItem(BaseModel):
     question_url: str
     answer_url: str
     explanation_url: str
-
 
 @app.post("/generate-video")
 async def generate_one(item: QuestionItem):
