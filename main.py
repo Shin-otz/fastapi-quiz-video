@@ -1,44 +1,23 @@
-from fastapi import FastAPI, Request
+from fastapi import FastAPI
 from pydantic import BaseModel
-from typing import List, Optional
-import json
+import uvicorn
 
 app = FastAPI()
 
-class QuizEntry(BaseModel):
-    row_number: Optional[int]
-    Question_type: str
-    Topic: str
-    Difficulty: Optional[str]
-    Question_text: str
-    Keyword: Optional[str]
-    Hint: Optional[str]
-    Answer: str
-    explanation: str
-    question_url: Optional[str]
-    answer_url: Optional[str]
-    explanation_url: Optional[str]
-    Image_file_url: Optional[str]
-    Image_describe: Optional[str]
-    correct_answer_: Optional[str]
-    question_mp3: Optional[str]
-    answer_mp3: Optional[str]
-    explanation_mp3: Optional[str]
-    images_file: Optional[str]
-    use: Optional[str]
+class QuestionItem(BaseModel):
+    question: str
+    options: list[str]
+    answer: str
+    image_url: str = None
+    audio_url: str = None
 
 @app.post("/generate-video")
-async def generate_video(request: Request):
-    data = await request.json()
+async def generate_question(item: QuestionItem):
+    print("질문:", item.question)
+    print("보기:", item.options)
+    print("정답:", item.answer)
+    return {"status": "received", "question": item.question}
 
-    # Check if the payload uses "body" key
-    if "body" in data and isinstance(data["body"], list):
-        entries = [QuizEntry(**entry) for entry in data["body"]]
-    else:
-        return {"error": "Invalid format: expected `body` with a list of quiz items."}
-
-    for entry in entries:
-        print(f"🎬 Generating video for row {entry.row_number}: {entry.Question_text}")
-        # generate_video_ffmpeg(entry)  # your real function
-
-    return {"status": "processing started", "count": len(entries)}
+# 🔽 이 블럭이 있으면 python main.py 로 실행 가능
+if __name__ == "__main__":
+    uvicorn.run("main:app", host="0.0.0.0", port=8080, reload=True)
