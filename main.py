@@ -6,6 +6,11 @@ app = FastAPI()
 class QuestionItem(BaseModel):
     question: str
     answer: str
+    background_url: str
+    image_url: str
+    question_url: str
+    answer_url: str
+    explanation_url: str
 
 
 @app.post("/generate-video")
@@ -15,7 +20,8 @@ async def generate_one(item: QuestionItem):
     return {
         "status": "ok",
         "question": item.question,
-        "answer": item.answer
+        "answer": item.answer,
+        "background_url": item.background_url
     }
 
 
