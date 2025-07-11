@@ -14,7 +14,7 @@ import re
 import uuid
 import traceback
 import mimetypes
-import os, json
+import os
 import logging
 
 # uvicorn 로거 설정
@@ -71,59 +71,25 @@ def extract_drive_id(url: str) -> str:
         return match.group(1)
     return str(uuid.uuid4())[:8]
 
-
 def convert_drive_url(url: str) -> str:
-    """
-    Google Drive 공유 URL을 직접 다운로드 가능한 URL로 변환
-    """
     match = re.search(r"/d/([a-zA-Z0-9_-]+)", url)
     if not match:
-        raise ValueError("❌ 유효하지 않은 Google Drive 링크입니다.")
+        raise ValueError("올바른 Google Drive 링크가 아닙니다.")
     file_id = match.group(1)
     return f"https://drive.google.com/uc?export=download&id={file_id}"
 
 def download_file(url: str, filename: str) -> str:
-    logger.debug("✅ 시작: download_file() 호출됨")
-    print("📌 download_file 함수 진입")
-
     if "drive.google.com" in url:
-        logger.debug(f"🔗 Google Drive URL 감지: {url}")
-        print(f"🔗 Google Drive URL 감지: {url}")
         url = convert_drive_url(url)
-        logger.debug(f"➡️ 변환된 다운로드 URL: {url}")
-        print(f"➡️ 변환된 다운로드 URL: {url}")
 
-    try:
-        r = requests.get(url)
-        r.raise_for_status()
-        logger.debug("📥 다운로드 성공")
-        print("📥 다운로드 성공")
-    except Exception as e:
-        logger.error(f"❌ 다운로드 실패: {e}")
-        print(f"❌ 다운로드 실패: {e}")
-        raise
-
-    content_type = r.headers.get("Content-Type", "")
-    logger.debug(f"🧪 Content-Type: {content_type}")
-
-    if not content_type.startswith(("image", "video", "audio")):
-        logger.error(f"❌ 잘못된 응답 형식: {content_type}")
-        print(f"❌ 잘못된 응답 형식: {content_type}")
-        raise ValueError(f"❌ 잘못된 응답: Content-Type = {content_type}")
+    r = requests.get(url)
+    r.raise_for_status()
 
     path = Path(f"tmp/{filename}")
     path.parent.mkdir(parents=True, exist_ok=True)
-    logger.debug(f"📂 저장 경로: {path}")
-    print(f"📂 저장 경로: {path}")
-
     if not path.exists():
         with open(path, "wb") as f:
             f.write(r.content)
-        logger.debug(f"✅ 파일 저장 완료: {path}")
-        print(f"✅ 파일 저장 완료: {path}")
-    else:
-        logger.debug(f"⚠️ 파일 이미 존재: {path}")
-        print(f"⚠️ 파일 이미 존재: {path}")
     return str(path)
 
 def create_video(image_path: str, audio_path: str, output_path: str):
@@ -203,17 +169,16 @@ async def generate_one(item: QuestionItem):
 
     # 🔽 파일 다운로드
     image_file = download_file(item.image_url, f"image_{image_id}.png")
-    background_image_file = download_file(item.background_url, f"bg_{background_id}.png")
     audio_file = download_file(item.question_url, f"question_{question_audio_id}.mp3")
     answer_file = download_file(item.answer_url, f"answer_{answer_audio_id}.mp3")
     explanation_file = download_file(item.explanation_url, f"explanation_{explanation_audio_id}.mp3")
-
+    background_image_file = download_file(item.background_url, f"background_{background_id}.png")
 
     # 🔽 출력 파일명
     output_filename = f"video_{question_audio_id}.mp4"
     output_file = f"tmp/{output_filename}"
 
-    #create_video((image_file), (audio_file), (output_file))
+    create_video((image_file), (audio_file), (output_file))
 
     BASE_URL = "https://primary-production-8af2.up.railway.app"
     public_video_url = f"{BASE_URL}/static/{output_filename}"
@@ -226,7 +191,7 @@ async def generate_one(item: QuestionItem):
         "answer": item.answer,
         "hint": item.hint,
         "key_term": item.key_term,
-        "background_fn": f"bg_{background_id}.png",
+        "background_fn": f"background_{background_id}.png",
         "image_fn": f"image_{image_id}.png",
         "question_fn":  f"question_{question_audio_id}.mp3",
         "answer_fn": f"answer_{answer_audio_id}.mp3",
@@ -302,4 +267,4 @@ async def on_startup():
 
 if __name__ == "__main__":
     logger.info("Starting ...")
-    uvicorn.run("main:app", host="0.0.0.0", port=8080, log_level="debug")
+    uvicorn.run("main:app", host="0.0.0.0", port=8080, log_level="info")
