@@ -358,7 +358,7 @@ async def generate_one(item: QuestionItem):
         "explanation": item.explanation
     }
 
-    #make_quiz_video_with_title_top(data_, output_file)
+    make_quiz_video_with_title_top(data_, output_file)
 
     #create_video(data_, (output_file))
 
@@ -382,7 +382,8 @@ async def generate_one(item: QuestionItem):
         "video_output_fn": output_filename,
         "video_file_exists": Path(output_file).exists(),
         "Image": Path(background_image_file).exists(),
-        "MP3": Path(question_file).exists()
+        "MP3": Path(question_file).exists(),
+        "beef_mp3": Path("tmp/countdown_beep.mp3").exists()
     }
 
 @app.get("/get-media")
