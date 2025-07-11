@@ -198,11 +198,11 @@ def make_quiz_video_with_title_top(data_,output_path):
     explanation_a = AudioFileClip(explanation_audio).set_start(question_a.duration+1+5+answer_a.duration+0.1)
 
     final_audio = CompositeAudioClip([question_a,answer_a,beef_a,explanation_a]).set_fps(44100)
-    final_audio.write_audiofile(r"d:/makeotz/final_.mp3")
+    final_audio.write_audiofile(r"tmp/final_.mp3")
 
     try:
         image_input = ffmpeg.input(bgimage_path, loop=1)
-        audio_input = ffmpeg.input(r"d:/makeotz/final_.mp3")
+        audio_input = ffmpeg.input(r"tmp/final_.mp3")
         base = image_input.filter('scale', 1080, 720)
 
         # 0. 제목 항상 상단 고정
