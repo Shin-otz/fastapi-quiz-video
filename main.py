@@ -16,6 +16,24 @@ import traceback
 import mimetypes
 import os
 import logging
+import json
+from googleapiclient.http import MediaIoBaseDownload
+from googleapiclient.discovery import build
+from google.oauth2.credentials import Credentials
+
+def get_drive_service():
+    # Railway에서 환경변수에서 토큰 사용
+    tokens = json.loads(os.environ["GOOGLE_TOKENS_JSON"])
+    creds = Credentials.from_authorized_user_info(tokens)
+    return build("drive", "v3", credentials=creds)
+
+
+if "GOOGLE_CREDENTIALS_JSON" in os.environ:
+    credentials_data = json.loads(os.environ["GOOGLE_CREDENTIALS_JSON"])
+    drive_service = get_drive_service()
+
+else:
+    print("❌ 로컬 실행을 허용하지 않습니다. Railway 환경에서만 실행하세요.")
 
 # uvicorn 로거 설정
 logger = logging.getLogger("uvicorn")
@@ -78,6 +96,7 @@ def convert_drive_url(url: str) -> str:
     file_id = match.group(1)
     return f"https://drive.google.com/uc?export=download&id={file_id}"
 
+"""
 def download_file(url: str, filename: str) -> str:
     if "drive.google.com" in url:
         url = convert_drive_url(url)
@@ -90,6 +109,23 @@ def download_file(url: str, filename: str) -> str:
     if not path.exists():
         with open(path, "wb") as f:
             f.write(r.content)
+    return str(path)
+"""
+
+def download_drive_file(file_id: str, filename: str) -> str:
+    path = Path(f"tmp/{filename}")
+    path.parent.mkdir(parents=True, exist_ok=True)
+
+    drive_service = get_drive_service()
+    request = drive_service.files().get_media(fileId=file_id)
+
+    with open(path, "wb") as f:
+        downloader = MediaIoBaseDownload(f, request)
+        done = False
+        while not done:
+            status, done = downloader.next_chunk()
+
+    print(f"✅ 다운로드 완료: {path}")
     return str(path)
 
 def create_video(image_path: str, audio_path: str, output_path: str):
@@ -155,30 +191,32 @@ def hello():
 #    logger.error(f"예외 발생: {traceback.format_exc()}")
 #    return JSONResponse(status_code=500, content={"message": "Internal server error."})
 
+def generate_unique_filename(prefix: str, ext: str, file_id: str) -> str:
+    return f"{prefix}_{file_id}.{ext}"
 @app.post("/generate-video")
 async def generate_one(item: QuestionItem):
     logger.debug(f"질문: {item.question}")
     logger.debug(f"정답: {item.answer}")
 
-    # 🔽 각 URL에 대해 고유 ID 기반 파일명 생성
+    # 🔽 각 URL에서 Google Drive file_id 추출
     image_id = extract_drive_id(item.image_url)
     question_audio_id = extract_drive_id(item.question_url)
     answer_audio_id = extract_drive_id(item.answer_url)
     explanation_audio_id = extract_drive_id(item.explanation_url)
     background_id = extract_drive_id(item.background_url)
 
-    # 🔽 파일 다운로드
-    image_file = download_file(item.image_url, f"image_{image_id}.png")
-    audio_file = download_file(item.question_url, f"question_{question_audio_id}.mp3")
-    answer_file = download_file(item.answer_url, f"answer_{answer_audio_id}.mp3")
-    explanation_file = download_file(item.explanation_url, f"explanation_{explanation_audio_id}.mp3")
-    background_image_file = download_file(item.background_url, f"background_{background_id}.png")
+    # 🔽 Google Drive API로 파일 다운로드
+    image_file = download_drive_file(image_id, generate_unique_filename("image", "png", image_id))
+    audio_file = download_drive_file(question_audio_id, generate_unique_filename("question", "mp3", question_audio_id))
+    answer_file = download_drive_file(answer_audio_id, generate_unique_filename("answer", "mp3", answer_audio_id))
+    explanation_file = download_drive_file(explanation_audio_id, generate_unique_filename("explanation", "mp3", explanation_audio_id))
+    background_image_file = download_drive_file(background_id, generate_unique_filename("background", "png", background_id))
 
     # 🔽 출력 파일명
     output_filename = f"video_{question_audio_id}.mp4"
     output_file = f"tmp/{output_filename}"
 
-    create_video((image_file), (audio_file), (output_file))
+    create_video(image_file, audio_file, output_file)
 
     BASE_URL = "https://primary-production-8af2.up.railway.app"
     public_video_url = f"{BASE_URL}/static/{output_filename}"
@@ -191,13 +229,12 @@ async def generate_one(item: QuestionItem):
         "answer": item.answer,
         "hint": item.hint,
         "key_term": item.key_term,
-        "background_fn": f"background_{background_id}.png",
-        "image_fn": f"image_{image_id}.png",
-        "question_fn":  f"question_{question_audio_id}.mp3",
-        "answer_fn": f"answer_{answer_audio_id}.mp3",
-        "explanation_fn":f"explanation_{explanation_audio_id}.mp3",
-        "video_output_fn":output_filename,
-        "bg_fn2" : background_image_file,
+        "background_fn": Path(background_image_file).name,
+        "image_fn": Path(image_file).name,
+        "question_fn": Path(audio_file).name,
+        "answer_fn": Path(answer_file).name,
+        "explanation_fn": Path(explanation_file).name,
+        "video_output_fn": output_filename,
         "Image": Path(background_image_file).exists(),
         "MP3": Path(audio_file).exists()
     }
