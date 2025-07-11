@@ -113,9 +113,16 @@ def download_file(url: str, filename: str) -> str:
             f.write(r.content)
     return str(path)
 
-def create_video(image_path: str, audio_path: str, output_path: str):
-    image_input = ffmpeg.input(image_path, loop=1, framerate=2)
-    audio_input = ffmpeg.input(audio_path)
+def create_video(data_, output_path: str):
+
+    question_audio = data_["question_audio"]
+    answer_audio = data_["answer_audio"]
+    explanation_audio = data_["explanation_audio"]
+    beef_audio = data_["beef_audio"]
+    bgimage_path = data_["background_image"]
+
+    image_input = ffmpeg.input(bgimage_path, loop=1, framerate=2)
+    audio_input = ffmpeg.input(question_audio)
     # 2. 출력 설정 및 실행
     (
         ffmpeg
@@ -348,7 +355,7 @@ async def generate_one(item: QuestionItem):
 
     #make_quiz_video_with_title_top(data_, output_file)
 
-#    create_video((background_image_file), (audio_file), (output_file))
+    create_video(data_, (output_file))
 
     BASE_URL = "https://primary-production-8af2.up.railway.app"
     public_video_url = f"{BASE_URL}/static/{output_filename}"
