@@ -1,21 +1,21 @@
 import subprocess
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.responses import FileResponse
-from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
-import logging
 import uvicorn
 import ffmpeg
 import requests
 from pathlib import Path
-import sys
 import re
 import uuid
-import traceback
 import mimetypes
 import os
 import logging
+from mutagen.mp3 import MP3
+from moviepy import *
+from utils.text_highlight import make_highlighted_text
+from utils.fonts import get_font
 
 # uvicorn 로거 설정
 logger = logging.getLogger("uvicorn")
@@ -30,6 +30,27 @@ Path("tmp").mkdir(parents=True, exist_ok=True)
 
 app = FastAPI()
 app.mount("/static", StaticFiles(directory="tmp"), name="static")
+
+def wrap_text(text, max_chars=22):
+    """
+    입력 텍스트가 너무 길면 강제로 줄바꿈(\n) 추가
+    기본값: 18글자 넘으면 줄바꿈 (대략 가로 30%)
+    """
+    words = text.strip().split()
+    lines = []
+    current = ""
+
+    for word in words:
+        if len(current + " " + word) <= max_chars:
+            current += " " + word if current else word
+        else:
+            lines.append(current)
+            current = word
+    if current:
+        lines.append(current)
+
+    return '\n'.join(lines)
+
 
 class QuestionItem(BaseModel):
     question_type: str
@@ -155,6 +176,143 @@ def hello():
 #    logger.error(f"예외 발생: {traceback.format_exc()}")
 #    return JSONResponse(status_code=500, content={"message": "Internal server error."})
 
+def make_quiz_video_with_title_top(data_,output_path):
+    font = r'NanumMyeongjo-YetHangul.ttf'
+
+    question_audio = data_["question_audio"]
+    answer_audio = data_["answer_audio"]
+    explanation_audio = data_["explanation_audio"]
+    beef_audio = data_["beef_audio"]
+    bgimage_path = data_["background_image"]
+    image_path = data_["image_"]
+
+    question_text = data_["question_text"]
+
+    q_length = (MP3(question_audio).info.length)
+    a_length = (MP3(answer_audio).info.length)
+    e_length = (MP3(explanation_audio).info.length)
+
+    question_a=AudioFileClip(question_audio)
+    answer_a = AudioFileClip(answer_audio).set_start(question_a.duration+1+5)
+    beef_a = AudioFileClip(beef_audio).set_start(question_a.duration+1)
+    explanation_a = AudioFileClip(explanation_audio).set_start(question_a.duration+1+5+answer_a.duration+0.1)
+
+    final_audio = CompositeAudioClip([question_a,answer_a,beef_a,explanation_a]).set_fps(44100)
+    final_audio.write_audiofile(r"d:/makeotz/final_.mp3")
+
+    try:
+        image_input = ffmpeg.input(bgimage_path, loop=1)
+        audio_input = ffmpeg.input(r"d:/makeotz/final_.mp3")
+        base = image_input.filter('scale', 1080, 720)
+
+        # 0. 제목 항상 상단 고정
+        video = base.drawtext(
+            text='분석 방법',
+            fontfile=font,
+            fontsize=25,
+            fontcolor='black',
+            x='(w-text_w)/2',
+            y='20',
+            box=1,
+            boxcolor='black@0.0',
+            boxborderw=10,
+            enable='gte(t,0)'
+        )
+
+        # 1. 문제
+        video = video.drawtext(
+            text=wrap_text(question_text),
+            fontfile=font,
+            fontsize=28,
+            fontcolor='black',
+            #x='(w-text_w)/2',
+            x='200',
+            y='120',
+            box=1,
+            boxcolor='black@0.0',
+            boxborderw=10,
+            enable='gte(t,0.5)'
+        )
+
+        # 2. 힌트
+        video = video.drawtext(
+            text="힌트: ㅂㅎㄱㅅ",
+            fontfile=font,
+            fontsize=42,
+            fontcolor='yellow',
+            x='(w-text_w)/2',
+            y='250',
+            box=1,
+            boxcolor='black@0.5',
+            boxborderw=10,
+            enable=f'between(t,{question_a.duration+4},{question_a.duration+1+5})'
+        )
+
+        # 3. 카운트다운
+        for i in range(5, 0, -1):
+            start = question_a.duration+1 + (5 - i)
+            end = start + 1
+            video = video.drawtext(
+                text=str(i),
+                fontfile=font,
+                fontsize=80,
+                fontcolor='red',
+                x='(w-text_w)/2',
+                y='(h-text_h)/2',
+                box=1,
+                boxcolor='black@0.0',
+                boxborderw=20,
+                enable=f'between(t,{start},{end})'
+            )
+
+        # 4. 정답
+        video = video.drawtext(
+            text="Answer",
+            fontfile=font,
+            fontsize=42,
+            fontcolor='cyan',
+            x='(w-text_w)/2',
+            y='250',
+            box=1,
+            boxcolor='black@0.5',
+            boxborderw=10,
+            #enable=f'between(t,{question_a.duration+1+5},{question_a.duration+1+5+answer_a.duration+explanation_a.duration+0.1})'
+            enable=f'gte(t,{question_a.duration+1+5})'
+        )
+
+        video = video.drawtext(
+            text=wrap_text("해설"),
+            fontfile=font,
+            fontsize=42,
+            fontcolor='cyan',
+            x='150',
+            y='320',
+            box=1,
+            boxcolor='black@0.5',
+            boxborderw=10,
+            enable=f'gte(t,{question_a.duration+1+5+answer_a.duration})'
+        )
+
+        (
+            ffmpeg
+            .output(
+                video, audio_input,
+                output_path,
+                vcodec='libx264',
+                acodec='aac',
+                audio_bitrate='192k',
+                pix_fmt='yuv420p',
+                shortest=None,
+                movflags='+faststart'
+            )
+            .run(overwrite_output=True)
+        )
+
+        print(f'생성 완료: {output_path}')
+
+    except ffmpeg.Error as e:
+        print(e)
+        print(f'❌ ffmpeg 에러:{e.stderr.decode()}')
 @app.post("/generate-video")
 async def generate_one(item: QuestionItem):
     logger.debug(f"질문: {item.question}")
@@ -169,7 +327,7 @@ async def generate_one(item: QuestionItem):
 
     # 🔽 파일 다운로드
     image_file = download_file(item.image_url, f"image_{image_id}.png")
-    audio_file = download_file(item.question_url, f"question_{question_audio_id}.mp3")
+    question_file = download_file(item.question_url, f"question_{question_audio_id}.mp3")
     answer_file = download_file(item.answer_url, f"answer_{answer_audio_id}.mp3")
     explanation_file = download_file(item.explanation_url, f"explanation_{explanation_audio_id}.mp3")
     background_image_file = download_file(item.background_url, f"background_{background_id}.png")
@@ -178,28 +336,42 @@ async def generate_one(item: QuestionItem):
     output_filename = f"video_{question_audio_id}.mp4"
     output_file = f"tmp/{output_filename}"
 
-    create_video((image_file), (audio_file), (output_file))
+    data_ = {
+        "question_audio": question_file,
+        "answer_audio": answer_file,
+        "explanation_audio": explanation_file,
+        "beef_audio": "tmp/countdown_beep.mp3",
+        "image_": image_file,
+        "background_image": background_image_file,
+        "question_text": item.question
+    }
+
+    make_quiz_video_with_title_top(data_, output_file)
+
+#    create_video((background_image_file), (audio_file), (output_file))
 
     BASE_URL = "https://primary-production-8af2.up.railway.app"
     public_video_url = f"{BASE_URL}/static/{output_filename}"
 
     return {
         "status": "ok",
+        "question_audio": question_file,
+        "answer_audio": answer_file,
+        "explanation_audio": explanation_file,
+        "beef_audio": "tmp/countdown_beep.mp3",
+        "image_": image_file,
+        "background_image": background_image_file,
+        "question_text": item.question,
         "video_file": public_video_url,
         "video_file_exists": Path(output_file).exists(),
         "question": item.question,
         "answer": item.answer,
         "hint": item.hint,
         "key_term": item.key_term,
-        "background_fn": f"background_{background_id}.png",
-        "image_fn": f"image_{image_id}.png",
-        "question_fn":  f"question_{question_audio_id}.mp3",
-        "answer_fn": f"answer_{answer_audio_id}.mp3",
-        "explanation_fn":f"explanation_{explanation_audio_id}.mp3",
         "video_output_fn":output_filename,
         "bg_fn2" : background_image_file,
         "Image": Path(background_image_file).exists(),
-        "MP3": Path(audio_file).exists()
+        "MP3": Path(question_file).exists()
     }
 
 @app.get("/get-media")
