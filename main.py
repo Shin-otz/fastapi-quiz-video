@@ -214,6 +214,7 @@ def make_quiz_video_with_title_top(data_, output_path):
     answer_text = data_["answer_text"]
     explanation_text = data_["explanation"]
     key_term = data_["key_term"]
+    ID = data_["ID"]
 
     # 오디오 길이 정보 (안 쓰이므로 생략 가능)
     q_length = MP3(question_audio).info.length
@@ -229,7 +230,7 @@ def make_quiz_video_with_title_top(data_, output_path):
     )
 
     final_audio = CompositeAudioClip([question_a, answer_a, beef_a, explanation_a]).with_fps(44100)
-    output_audio_path = os.path.join("tmp", "final_.mp3")
+    output_audio_path = os.path.join("tmp", f"final_{ID}.mp3")
     final_audio.write_audiofile(output_audio_path)
 
     try:
@@ -239,12 +240,12 @@ def make_quiz_video_with_title_top(data_, output_path):
 
         # 제목
         video = base.drawtext(
-            text='[ 한국사 퀴즈 ]',
+            text='한국사 퀴즈',
             fontfile=font,
-            fontsize=25,
+            fontsize=33,
             fontcolor='black',
             x='(w-text_w)/2',
-            y='20',
+            y='16',
             box=1,
             boxcolor='black@0.0',
             boxborderw=10,
@@ -262,7 +263,7 @@ def make_quiz_video_with_title_top(data_, output_path):
             box=1,
             boxcolor='black@0.0',
             boxborderw=10,
-            enable='gte(t,0.5)'
+            enable='gte(t,0)'
         )
 
         # 힌트
@@ -298,7 +299,7 @@ def make_quiz_video_with_title_top(data_, output_path):
 
         # 정답
         video = video.drawtext(
-            text=answer_text,
+            text=f"정답: {answer_text}",
             fontfile=font,
             fontsize=30,
             fontcolor='black',
@@ -376,7 +377,8 @@ async def generate_one(item: QuestionItem):
         "hint_text": item.hint,
         "key_term": item.key_term,
         "answer_text": item.answer,
-        "explanation": item.explanation
+        "explanation": item.explanation,
+        "ID": question_audio_id
     }
 
     make_quiz_video_with_title_top(data_, output_file)
@@ -388,6 +390,7 @@ async def generate_one(item: QuestionItem):
 
     return {
         "status": "ok",
+        "ID": question_audio_id,
         "question_audio": question_file,
         "answer_audio": answer_file,
         "explanation_audio": explanation_file,
