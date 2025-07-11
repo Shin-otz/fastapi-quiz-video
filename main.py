@@ -383,7 +383,7 @@ async def generate_one(item: QuestionItem):
 
 @app.get("/get-media")
 def get_media(filename: str):
-    file_path = f"tmp/{filename}"
+    file_path = f"{filename}"
 
     if not os.path.isfile(file_path):
         raise HTTPException(status_code=404, detail="파일이 존재하지 않습니다.")
@@ -398,7 +398,7 @@ def get_media(filename: str):
 @app.post("/check-audio")
 def check_audio_post(data: FileRequest):
     filename = data.filename
-    file_path = Path(f"tmp/{filename}")
+    file_path = Path(f"{filename}")
     if file_path.exists():
         return FileResponse(
             path=str(file_path),
@@ -411,7 +411,7 @@ def check_audio_post(data: FileRequest):
 
 @app.get("/check-file")
 def check_file(filename: str = Query(..., description="파일 이름")):
-    file_path = Path(f"tmp/{filename}")
+    file_path = Path(f"{filename}")
 
     if file_path.exists():
         # 확장자 기반 MIME 타입 추정
@@ -429,7 +429,7 @@ def check_file(filename: str = Query(..., description="파일 이름")):
 
 @app.post("/check-video")
 def check_video(filename: str):
-    video_path = Path(f"tmp/{filename}")
+    video_path = Path(f"{filename}")
     if video_path.exists():
         return FileResponse(
             path=str(video_path),
