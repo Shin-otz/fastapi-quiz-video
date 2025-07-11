@@ -115,21 +115,6 @@ def download_file(url: str, filename: str) -> str:
             f.write(r.content)
     return str(path)
 
-
-def download_file_tmp2(url: str, filename: str) -> str:
-    if "drive.google.com" in url:
-        url = convert_drive_url(url)
-
-    r = requests.get(url)
-    r.raise_for_status()
-
-    path = Path(f"tmp2/{filename}")
-    path.parent.mkdir(parents=True, exist_ok=True)
-    if not path.exists():
-        with open(path, "wb") as f:
-            f.write(r.content)
-    return str(path)
-
 def create_video(data_, output_path: str):
 
     question_audio = data_["question_audio"]
@@ -471,19 +456,19 @@ async def on_startup():
     logger.info("✅ FFmpeg 설치 확인됨, 서버 시작!")
 
 if __name__ == "__main__":
-    question_file = download_file_tmp2("https://drive.google.com/file/d/10dM1fc_hSJa9Y4-9vaSxRSjh2I0Twgs8/view?usp=drive_link", "question.mp3")
-    answer_file = download_file_tmp2("https://drive.google.com/file/d/1ONaATr2Z5dbD2VlOeDG4TbOsjOOyjPrc/view?usp=drive_link", "answer.mp3")
-    explanation_file = download_file_tmp2("https://drive.google.com/file/d/19df-6d0SGO5K6i2jIzmaDy-_xmB6lm2B/view?usp=drive_link", "explanation.mp3")
-    background_file = download_file_tmp2("https://drive.google.com/file/d/1vjc4FlwhjfiT6Vcb2EE1Jg0FrE3ZcFFR/view?usp=drive_link", "background.png")
-    image_file = download_file_tmp2("https://drive.google.com/file/d/1EXR7malg374i7SW_GfxPVXDZhQ1gkkt2/view?usp=drive_link", "image.png")
+    question_file = download_file("https://drive.google.com/file/d/10dM1fc_hSJa9Y4-9vaSxRSjh2I0Twgs8/view?usp=drive_link", "question.mp3")
+    answer_file = download_file("https://drive.google.com/file/d/1ONaATr2Z5dbD2VlOeDG4TbOsjOOyjPrc/view?usp=drive_link", "answer.mp3")
+    explanation_file = download_file("https://drive.google.com/file/d/19df-6d0SGO5K6i2jIzmaDy-_xmB6lm2B/view?usp=drive_link", "explanation.mp3")
+    background_file = download_file("https://drive.google.com/file/d/1vjc4FlwhjfiT6Vcb2EE1Jg0FrE3ZcFFR/view?usp=drive_link", "background.png")
+    image_file = download_file("https://drive.google.com/file/d/1EXR7malg374i7SW_GfxPVXDZhQ1gkkt2/view?usp=drive_link", "image.png")
 
     test_data = {
-        "question_audio": "tmp2/question.mp3",
-        "answer_audio": "tmp2/answer.mp3",
-        "explanation_audio": "tmp2/explanation.mp3",
-        "beef_audio": "tmp2/countdown_beep.mp3",
-        "background_image": "tmp2/background.png",
-        "image_": "tmp2/image.png",
+        "question_audio": "tmp/question.mp3",
+        "answer_audio": "tmp/answer.mp3",
+        "explanation_audio": "tmp/explanation.mp3",
+        "beef_audio": "tmp/countdown_beep.mp3",
+        "background_image": "tmp/background.png",
+        "image_": "tmp/image.png",
         "question_text": "세종대왕이 만든 문자는?",
         "hint_text": "ㅎㄱ",
         "answer_text": "한글",
@@ -495,6 +480,5 @@ if __name__ == "__main__":
     make_quiz_video_with_title_top(test_data, output_path)
 
     print("✅ 테스트 영상 생성 완료:", output_path)
-
     logger.info("Starting ...")
     uvicorn.run("main:app", host="0.0.0.0", port=8080, log_level="info")
