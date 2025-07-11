@@ -32,7 +32,7 @@ Path("tmp").mkdir(parents=True, exist_ok=True)
 app = FastAPI()
 app.mount("/static", StaticFiles(directory="tmp"), name="static")
 
-def wrap_text(text, max_chars=22):
+def wrap_text(text, max_chars=30):
     """
     입력 텍스트가 너무 길면 강제로 줄바꿈(\n) 추가
     기본값: 18글자 넘으면 줄바꿈 (대략 가로 30%)
@@ -239,7 +239,7 @@ def make_quiz_video_with_title_top(data_, output_path):
 
         # 제목
         video = base.drawtext(
-            text='한국사 퀴즈~',
+            text='[ 한국사 퀴즈 ]',
             fontfile=font,
             fontsize=25,
             fontcolor='black',
@@ -270,7 +270,7 @@ def make_quiz_video_with_title_top(data_, output_path):
             text=f"힌트: {hint_text}",
             fontfile=font,
             fontsize=30,
-            fontcolor='yellow',
+            fontcolor='blue',
             x='(w-text_w)/2',
             y='250',
             box=1,
@@ -298,7 +298,7 @@ def make_quiz_video_with_title_top(data_, output_path):
 
         # 정답
         video = video.drawtext(
-            text=answer_text,
+            text=f"정답:answer_text",
             fontfile=font,
             fontsize=30,
             fontcolor='black',
