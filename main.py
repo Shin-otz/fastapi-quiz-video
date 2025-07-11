@@ -185,7 +185,7 @@ def hello():
 #    return JSONResponse(status_code=500, content={"message": "Internal server error."})
 
 def make_quiz_video_with_title_top(data_,output_path):
-    font = r'NanumMyeongjo-YetHangul.ttf'
+    font = r'tmp/NanumMyeongjo-YetHangul.ttf'
 
     question_audio = data_["question_audio"]
     answer_audio = data_["answer_audio"]
@@ -195,6 +195,10 @@ def make_quiz_video_with_title_top(data_,output_path):
     image_path = data_["image_"]
 
     question_text = data_["question_text"]
+    hint_text = data_["hint_text"]
+    answer_text = data_["answer_text"]
+    explanation_text =  data_["explanation"]
+    key_term = data_["key_term"]
 
     q_length = (MP3(question_audio).info.length)
     a_length = (MP3(answer_audio).info.length)
@@ -215,7 +219,7 @@ def make_quiz_video_with_title_top(data_,output_path):
 
         # 0. 제목 항상 상단 고정
         video = base.drawtext(
-            text='분석 방법',
+            text='한국사 퀴즈~',
             fontfile=font,
             fontsize=25,
             fontcolor='black',
@@ -244,7 +248,7 @@ def make_quiz_video_with_title_top(data_,output_path):
 
         # 2. 힌트
         video = video.drawtext(
-            text="힌트: ㅂㅎㄱㅅ",
+            text=f"힌트: {hint_text}",
             fontfile=font,
             fontsize=42,
             fontcolor='yellow',
@@ -275,7 +279,7 @@ def make_quiz_video_with_title_top(data_,output_path):
 
         # 4. 정답
         video = video.drawtext(
-            text="Answer",
+            text=answer_text,
             fontfile=font,
             fontsize=42,
             fontcolor='cyan',
@@ -289,7 +293,7 @@ def make_quiz_video_with_title_top(data_,output_path):
         )
 
         video = video.drawtext(
-            text=wrap_text("해설"),
+            text=wrap_text(explanation_text),
             fontfile=font,
             fontsize=42,
             fontcolor='cyan',
@@ -358,9 +362,9 @@ async def generate_one(item: QuestionItem):
         "explanation": item.explanation
     }
 
-    #make_quiz_video_with_title_top(data_, output_file)
+    make_quiz_video_with_title_top(data_, output_file)
 
-    create_video(data_, (output_file))
+    #create_video(data_, (output_file))
 
     BASE_URL = "https://primary-production-8af2.up.railway.app"
     public_video_url = f"{BASE_URL}/static/{output_filename}"
