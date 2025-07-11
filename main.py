@@ -353,14 +353,14 @@ async def generate_one(item: QuestionItem):
         "background_image": background_image_file,
         "question_text": item.question,
         "hint_text": item.hint,
-        "key_term":item.key_term,
-        "answer_text":item.answer,
+        "key_term": item.key_term,
+        "answer_text": item.answer,
         "explanation": item.explanation
     }
 
     #make_quiz_video_with_title_top(data_, output_file)
 
-    create_video(data_, (output_file))
+    #create_video(data_, (output_file))
 
     BASE_URL = "https://primary-production-8af2.up.railway.app"
     public_video_url = f"{BASE_URL}/static/{output_filename}"
