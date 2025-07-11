@@ -358,9 +358,9 @@ async def generate_one(item: QuestionItem):
         "explanation": item.explanation
     }
 
-    make_quiz_video_with_title_top(data_, output_file)
+    #make_quiz_video_with_title_top(data_, output_file)
 
-    #create_video(data_, (output_file))
+    create_video(data_, (output_file))
 
     BASE_URL = "https://primary-production-8af2.up.railway.app"
     public_video_url = f"{BASE_URL}/static/{output_filename}"
