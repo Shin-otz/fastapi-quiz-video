@@ -255,7 +255,7 @@ def make_quiz_video_with_title_top(data_, output_path):
         video = video.drawtext(
             text=wrap_text(question_text),
             fontfile=font,
-            fontsize=28,
+            fontsize=30,
             fontcolor='black',
             x='200',
             y='120',
@@ -269,12 +269,12 @@ def make_quiz_video_with_title_top(data_, output_path):
         video = video.drawtext(
             text=f"힌트: {hint_text}",
             fontfile=font,
-            fontsize=42,
+            fontsize=30,
             fontcolor='yellow',
             x='(w-text_w)/2',
             y='250',
             box=1,
-            boxcolor='black@0.5',
+            boxcolor='black@0.01',
             boxborderw=10,
             enable=f'between(t,{question_a.duration+4},{question_a.duration+1+5})'
         )
@@ -300,12 +300,12 @@ def make_quiz_video_with_title_top(data_, output_path):
         video = video.drawtext(
             text=answer_text,
             fontfile=font,
-            fontsize=42,
-            fontcolor='cyan',
+            fontsize=30,
+            fontcolor='black',
             x='(w-text_w)/2',
             y='250',
             box=1,
-            boxcolor='black@0.5',
+            boxcolor='black@0.0',
             boxborderw=10,
             enable=f'gte(t,{question_a.duration + 1 + 5})'
         )
@@ -314,12 +314,12 @@ def make_quiz_video_with_title_top(data_, output_path):
         video = video.drawtext(
             text=wrap_text(explanation_text),
             fontfile=font,
-            fontsize=42,
-            fontcolor='cyan',
+            fontsize=30,
+            fontcolor='black',
             x='150',
             y='320',
             box=1,
-            boxcolor='black@0.5',
+            boxcolor='black@0.0',
             boxborderw=10,
             enable=f'gte(t,{question_a.duration + 1 + 5 + answer_a.duration})'
         )
@@ -399,7 +399,6 @@ async def generate_one(item: QuestionItem):
         "key_term": item.key_term,
         "answer_text": item.answer,
         "explanation": item.explanation,
-        "beef_audio": "tmp/countdown_beep.mp3",
         "video_output_fn": output_filename,
         "video_file_exists": Path(output_file).exists(),
         "Image": Path(background_image_file).exists(),
