@@ -1,0 +1,11 @@
+fastapi
+uvicorn
+httpx
+requests
+pydantic
+python-multipart
+google-api-python-client
+google-auth
+google-auth-oauthlib
+google-auth-httplib2
+ffmpeg-python
