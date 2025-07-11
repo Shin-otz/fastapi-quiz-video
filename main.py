@@ -59,6 +59,7 @@ class QuestionItem(BaseModel):
     question: str
     hint: str
     answer: str
+    explanation : str
     background_url: str
     image_url: str
     question_url: str
@@ -350,7 +351,11 @@ async def generate_one(item: QuestionItem):
         "beef_audio": "tmp/countdown_beep.mp3",
         "image_": image_file,
         "background_image": background_image_file,
-        "question_text": item.question
+        "question_text": item.question,
+        "hint_text": item.hint,
+        "key_term":item.key_term,
+        "answer_text":item.answer,
+        "explanation": item.explanation
     }
 
     #make_quiz_video_with_title_top(data_, output_file)
