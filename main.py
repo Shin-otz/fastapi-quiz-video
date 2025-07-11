@@ -262,7 +262,7 @@ def make_quiz_video_with_title_top(data_, output_path):
             box=1,
             boxcolor='black@0.0',
             boxborderw=10,
-            enable='gte(t,0.1)'
+            enable='gte(t,0.5)'
         )
 
         # 힌트
@@ -298,7 +298,7 @@ def make_quiz_video_with_title_top(data_, output_path):
 
         # 정답
         video = video.drawtext(
-            text=f"정답:{answer_text}",
+            text=answer_text,
             fontfile=font,
             fontsize=30,
             fontcolor='black',
