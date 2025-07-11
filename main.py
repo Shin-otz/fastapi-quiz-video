@@ -346,7 +346,7 @@ async def generate_one(item: QuestionItem):
         "question_text": item.question
     }
 
-    make_quiz_video_with_title_top(data_, output_file)
+    #make_quiz_video_with_title_top(data_, output_file)
 
 #    create_video((background_image_file), (audio_file), (output_file))
 
