@@ -20,20 +20,35 @@ import json
 from googleapiclient.http import MediaIoBaseDownload
 from googleapiclient.discovery import build
 from google.oauth2.credentials import Credentials
+from google_auth_oauthlib.flow import Flow
+
 
 def get_drive_service():
-    # Railway에서 환경변수에서 토큰 사용
+    """
+    인증된 토큰(JSON)을 바탕으로 Google Drive API 클라이언트를 생성
+    """
+    if "GOOGLE_TOKENS_JSON" not in os.environ:
+        print("⚠️ GOOGLE_TOKENS_JSON이 없습니다. Drive API 클라이언트 생성을 건너뜁니다.")
+        return None
+
     tokens = json.loads(os.environ["GOOGLE_TOKENS_JSON"])
     creds = Credentials.from_authorized_user_info(tokens)
     return build("drive", "v3", credentials=creds)
 
+# 환경 변수에 OAuth 클라이언트 정보가 있는 경우만 동작
+credentials_data = None
+drive_service = None
 
 if "GOOGLE_CREDENTIALS_JSON" in os.environ:
     credentials_data = json.loads(os.environ["GOOGLE_CREDENTIALS_JSON"])
     drive_service = get_drive_service()
-
 else:
-    print("❌ 로컬 실행을 허용하지 않습니다. Railway 환경에서만 실행하세요.")
+    print("🔕 로컬 환경이거나 GOOGLE_CREDENTIALS_JSON이 없습니다. 인증 흐름은 비활성화됩니다.")
+
+if drive_service:
+    file = drive_service.files().get(fileId="...").execute()
+else:
+    print("⚠️ drive_service가 활성화되지 않았습니다.")
 
 # uvicorn 로거 설정
 logger = logging.getLogger("uvicorn")
