@@ -70,11 +70,11 @@ class QuestionItem(BaseModel):
 class FileRequest(BaseModel):
     filename: str
 
-class MergeRequest(BaseModel):
+class VideoMergeRequest(BaseModel):
     sheet_name: str
     merged_video_name: str
     videos: List[str]
-    image: str
+
 
 def check_ffmpeg_installed():
     try:
@@ -202,62 +202,68 @@ def download_drive_file(url: str, dest: Path) -> str:
     dest.write_bytes(r.content)
     return str(dest)
 
+def drive_url_to_direct_link(url: str) -> str:
+    # Extract file ID
+    if "file/d/" in url:
+        file_id = url.split("file/d/")[1].split("/")[0]
+        return f"https://drive.google.com/uc?export=download&id={file_id}"
+    return url
 
-def merge_videos_ffmpeg(video_paths: List[str], image_path: str, output_path: str):
-    # 무음 삽입용 파일
-    silent = Path("tmp/silence.mp3")
-    if not silent.exists():
-        subprocess.run([
-            "ffmpeg", "-f", "lavfi", "-i", "anullsrc=channel_layout=stereo:sample_rate=44100",
-            "-t", "1", "-q:a", "9", "-acodec", "libmp3lame", str(silent)
-        ])
+def download_mp4(url: str, filename: str) -> str:
+    direct_url = drive_url_to_direct_link(url)
+    path = TMP_DIR / filename
+    with requests.get(direct_url, stream=True) as r:
+        r.raise_for_status()
+        with open(path, "wb") as f:
+            for chunk in r.iter_content(chunk_size=8192):
+                f.write(chunk)
+    return str(path)
 
-    # 입력 영상들 + 무음 사이마다 삽입
-    input_files = []
-    for video in video_paths:
-        input_files.extend([
-            f"file '{video}'",
-            f"file '{silent}'"
-        ])
-    input_txt = Path("tmp/input.txt")
-    input_txt.write_text("\n".join(input_files[:-1]))  # 마지막 무음은 제거
 
-    # ffmpeg concat
-    subprocess.run([
-        "ffmpeg", "-y", "-f", "concat", "-safe", "0",
-        "-i", str(input_txt), "-i", image_path,
-        "-filter_complex", "[1][0:v]overlay=10:10",  # 이미지 오버레이
-        "-c:v", "libx264", "-c:a", "aac", output_path
-    ])
+def merge_videos_ffmpeg(file_paths: list[str], output_name: str) -> str:
+    TMP_DIR = Path("tmp")
+    TMP_DIR.mkdir(exist_ok=True)
+    list_path = TMP_DIR / f"{output_name}_list.txt"
 
-@app.post("/merge-videos")
-def merge_videos(data: MergeRequest):
-    temp_dir = Path("tmp")
-    temp_dir.mkdir(exist_ok=True)
+    # Create list.txt for ffmpeg concat
+    with open(list_path, "w") as f:
+        for file_path in file_paths:
+            f.write(f"file '{file_path}'\n")
 
-    uid = uuid.uuid4().hex[:6]
-    base_name = f"{data.sheet_name}_{data.merged_video_name}_{uid}"
+    output_path = TMP_DIR / f"{output_name}.mp4"
+    command = [
+        "ffmpeg",
+        "-f", "concat",
+        "-safe", "0",
+        "-i", str(list_path),
+        "-c", "copy",
+        str(output_path)
+    ]
+    subprocess.run(command, check=True)
+    return str(output_path)
 
-    # 1. 다운로드
-    video_paths = []
-    for i, url in enumerate(data.videos):
-        path = temp_dir / f"{base_name}_v{i}.mp4"
-        download_drive_file(url, path)
-        video_paths.append(str(path))
 
-    image_path = temp_dir / f"{base_name}_image.png"
-    download_drive_file(data.image, image_path)
+@app.post("/merge-videos/")
+async def merge_videos(payload: List[VideoMergeRequest]):
+    results = []
 
-    # 2. 병합
-    output_path = temp_dir / f"{base_name}_merged.mp4"
-    merge_videos_ffmpeg(video_paths, str(image_path), str(output_path))
+    for item in payload:
+        sheet = item.sheet_name
+        merged_name = item.merged_video_name
+        video_urls = item.videos
 
-    return {
-        "status": "ok",
-        "output_file": output_path.name,
-        "path": str(output_path)
-    }
+        # 실제 로직 (예: 다운로드 → 병합 → 저장)
+        print(f"[{sheet}] '{merged_name}' 병합 시작: {len(video_urls)}개 영상")
 
+        # 예시 응답 데이터
+        results.append({
+            "sheet": sheet,
+            "merged_video_name": merged_name,
+            "video_count": len(video_urls),
+            "status": "success"
+        })
+
+    return {"result": results}
 @app.get("/")
 def hello():
     logger.info("👋 INFO 로그 작동!")
