@@ -17,6 +17,7 @@ from moviepy import *
 from utils.text_highlight import make_highlighted_text
 from utils.fonts import get_font
 from typing import List
+import subprocess
 
 # uvicorn 로거 설정
 logger = logging.getLogger("uvicorn")
@@ -233,7 +234,7 @@ def merge_videos_ffmpeg(file_paths: list[str], output_name: str) -> str:
     TMP_DIR.mkdir(exist_ok=True)
     list_path = TMP_DIR / f"{output_name}_list.txt"
 
-    # Create list.txt for ffmpeg concat
+    # list.txt 만들기
     with open(list_path, "w") as f:
         for file_path in file_paths:
             f.write(f"file '{file_path}'\n")
@@ -247,7 +248,15 @@ def merge_videos_ffmpeg(file_paths: list[str], output_name: str) -> str:
         "-c", "copy",
         str(output_path)
     ]
-    subprocess.run(command, check=True)
+
+    try:
+        result = subprocess.run(command, check=True, capture_output=True, text=True)
+        print("FFmpeg 성공 로그:", result.stdout)
+    except subprocess.CalledProcessError as e:
+        print("FFmpeg 실패 STDERR:", e.stderr)
+        print("실패 STDOUT:", e.stdout)
+        raise
+
     return str(output_path)
 
 @app.post("/merge-videos")
