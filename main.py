@@ -187,6 +187,13 @@ def create_video2(image_path: str, audio_path: str, output_path: str):
         logger.error(str(ex))
         raise HTTPException(status_code=500, detail=f"비디오 생성 중 알 수 없는 오류 발생{image_path} ::{audio_path} :: {output_path}")
 
+@app.get("/check-list")
+def check_list(filename: str):
+    file_path = Path(f"tmp/{filename}_list.txt")
+    if file_path.exists():
+        return FileResponse(path=str(file_path), media_type="text/plain")
+    else:
+        return {"error": "list.txt 파일이 존재하지 않음"}
 
 def download_drive_file(url: str, dest: Path) -> str:
     # URL에서 ID 추출
