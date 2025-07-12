@@ -16,7 +16,7 @@ from mutagen.mp3 import MP3
 from moviepy import *
 from utils.text_highlight import make_highlighted_text
 from utils.fonts import get_font
-
+from typing import List
 
 # uvicorn 로거 설정
 logger = logging.getLogger("uvicorn")
@@ -70,6 +70,11 @@ class QuestionItem(BaseModel):
 class FileRequest(BaseModel):
     filename: str
 
+class MergeRequest(BaseModel):
+    sheet_name: str
+    merged_video_name: str
+    videos: List[str]
+    image: str
 
 def check_ffmpeg_installed():
     try:
@@ -188,6 +193,71 @@ def create_video2(image_path: str, audio_path: str, output_path: str):
         logger.error(str(ex))
         raise HTTPException(status_code=500, detail=f"비디오 생성 중 알 수 없는 오류 발생{image_path} ::{audio_path} :: {output_path}")
 
+
+def download_drive_file(url: str, dest: Path) -> str:
+    # URL에서 ID 추출
+    file_id = url.split("/d/")[1].split("/")[0]
+    direct_url = f"https://drive.google.com/uc?export=download&id={file_id}"
+    r = requests.get(direct_url)
+    dest.write_bytes(r.content)
+    return str(dest)
+
+
+def merge_videos_ffmpeg(video_paths: List[str], image_path: str, output_path: str):
+    # 무음 삽입용 파일
+    silent = Path("tmp/silence.mp3")
+    if not silent.exists():
+        subprocess.run([
+            "ffmpeg", "-f", "lavfi", "-i", "anullsrc=channel_layout=stereo:sample_rate=44100",
+            "-t", "1", "-q:a", "9", "-acodec", "libmp3lame", str(silent)
+        ])
+
+    # 입력 영상들 + 무음 사이마다 삽입
+    input_files = []
+    for video in video_paths:
+        input_files.extend([
+            f"file '{video}'",
+            f"file '{silent}'"
+        ])
+    input_txt = Path("tmp/input.txt")
+    input_txt.write_text("\n".join(input_files[:-1]))  # 마지막 무음은 제거
+
+    # ffmpeg concat
+    subprocess.run([
+        "ffmpeg", "-y", "-f", "concat", "-safe", "0",
+        "-i", str(input_txt), "-i", image_path,
+        "-filter_complex", "[1][0:v]overlay=10:10",  # 이미지 오버레이
+        "-c:v", "libx264", "-c:a", "aac", output_path
+    ])
+
+@app.post("/merge-videos")
+def merge_videos(data: MergeRequest):
+    temp_dir = Path("tmp")
+    temp_dir.mkdir(exist_ok=True)
+
+    uid = uuid.uuid4().hex[:6]
+    base_name = f"{data.sheet_name}_{data.merged_video_name}_{uid}"
+
+    # 1. 다운로드
+    video_paths = []
+    for i, url in enumerate(data.videos):
+        path = temp_dir / f"{base_name}_v{i}.mp4"
+        download_drive_file(url, path)
+        video_paths.append(str(path))
+
+    image_path = temp_dir / f"{base_name}_image.png"
+    download_drive_file(data.image, image_path)
+
+    # 2. 병합
+    output_path = temp_dir / f"{base_name}_merged.mp4"
+    merge_videos_ffmpeg(video_paths, str(image_path), str(output_path))
+
+    return {
+        "status": "ok",
+        "output_file": output_path.name,
+        "path": str(output_path)
+    }
+
 @app.get("/")
 def hello():
     logger.info("👋 INFO 로그 작동!")
@@ -263,7 +333,7 @@ def make_quiz_video_with_title_top(data_, output_path):
             box=1,
             boxcolor='black@0.0',
             boxborderw=10,
-            enable='gte(t,0)'
+            enable='gte(t,0.1)'
         )
 
         # 힌트

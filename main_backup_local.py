@@ -32,7 +32,7 @@ Path("tmp").mkdir(parents=True, exist_ok=True)
 app = FastAPI()
 app.mount("/static", StaticFiles(directory="tmp"), name="static")
 
-def wrap_text(text, max_chars=22):
+def wrap_text(text, max_chars=30):
     """
     입력 텍스트가 너무 길면 강제로 줄바꿈(\n) 추가
     기본값: 18글자 넘으면 줄바꿈 (대략 가로 30%)
@@ -109,6 +109,21 @@ def download_file(url: str, filename: str) -> str:
     r.raise_for_status()
 
     path = Path(f"tmp/{filename}")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    if not path.exists():
+        with open(path, "wb") as f:
+            f.write(r.content)
+    return str(path)
+
+
+def download_file_tmp2(url: str, filename: str) -> str:
+    if "drive.google.com" in url:
+        url = convert_drive_url(url)
+
+    r = requests.get(url)
+    r.raise_for_status()
+
+    path = Path(f"tmp2/{filename}")
     path.parent.mkdir(parents=True, exist_ok=True)
     if not path.exists():
         with open(path, "wb") as f:
@@ -199,6 +214,7 @@ def make_quiz_video_with_title_top(data_, output_path):
     answer_text = data_["answer_text"]
     explanation_text = data_["explanation"]
     key_term = data_["key_term"]
+    ID = data_["ID"]
 
     # 오디오 길이 정보 (안 쓰이므로 생략 가능)
     q_length = MP3(question_audio).info.length
@@ -214,7 +230,7 @@ def make_quiz_video_with_title_top(data_, output_path):
     )
 
     final_audio = CompositeAudioClip([question_a, answer_a, beef_a, explanation_a]).with_fps(44100)
-    output_audio_path = os.path.join("tmp", "final_.mp3")
+    output_audio_path = os.path.join("tmp", f"final_{ID}.mp3")
     final_audio.write_audiofile(output_audio_path)
 
     try:
@@ -224,12 +240,12 @@ def make_quiz_video_with_title_top(data_, output_path):
 
         # 제목
         video = base.drawtext(
-            text='한국사 퀴즈~',
+            text='한국사 퀴즈',
             fontfile=font,
-            fontsize=25,
+            fontsize=33,
             fontcolor='black',
             x='(w-text_w)/2',
-            y='20',
+            y='16',
             box=1,
             boxcolor='black@0.0',
             boxborderw=10,
@@ -240,26 +256,26 @@ def make_quiz_video_with_title_top(data_, output_path):
         video = video.drawtext(
             text=wrap_text(question_text),
             fontfile=font,
-            fontsize=28,
+            fontsize=30,
             fontcolor='black',
             x='200',
             y='120',
             box=1,
             boxcolor='black@0.0',
             boxborderw=10,
-            enable='gte(t,0.5)'
+            enable='gte(t,0.1)'
         )
 
         # 힌트
         video = video.drawtext(
             text=f"힌트: {hint_text}",
             fontfile=font,
-            fontsize=42,
-            fontcolor='yellow',
+            fontsize=30,
+            fontcolor='blue',
             x='(w-text_w)/2',
             y='250',
             box=1,
-            boxcolor='black@0.5',
+            boxcolor='black@0.01',
             boxborderw=10,
             enable=f'between(t,{question_a.duration+4},{question_a.duration+1+5})'
         )
@@ -283,14 +299,14 @@ def make_quiz_video_with_title_top(data_, output_path):
 
         # 정답
         video = video.drawtext(
-            text=answer_text,
+            text=f"정답: {answer_text}",
             fontfile=font,
-            fontsize=42,
-            fontcolor='cyan',
+            fontsize=30,
+            fontcolor='black',
             x='(w-text_w)/2',
             y='250',
             box=1,
-            boxcolor='black@0.5',
+            boxcolor='black@0.0',
             boxborderw=10,
             enable=f'gte(t,{question_a.duration + 1 + 5})'
         )
@@ -299,12 +315,12 @@ def make_quiz_video_with_title_top(data_, output_path):
         video = video.drawtext(
             text=wrap_text(explanation_text),
             fontfile=font,
-            fontsize=42,
-            fontcolor='cyan',
+            fontsize=30,
+            fontcolor='black',
             x='150',
             y='320',
             box=1,
-            boxcolor='black@0.5',
+            boxcolor='black@0.0',
             boxborderw=10,
             enable=f'gte(t,{question_a.duration + 1 + 5 + answer_a.duration})'
         )
@@ -361,7 +377,8 @@ async def generate_one(item: QuestionItem):
         "hint_text": item.hint,
         "key_term": item.key_term,
         "answer_text": item.answer,
-        "explanation": item.explanation
+        "explanation": item.explanation,
+        "ID": question_audio_id
     }
 
     make_quiz_video_with_title_top(data_, output_file)
@@ -373,6 +390,7 @@ async def generate_one(item: QuestionItem):
 
     return {
         "status": "ok",
+        "ID": question_audio_id,
         "question_audio": question_file,
         "answer_audio": answer_file,
         "explanation_audio": explanation_file,
@@ -384,7 +402,6 @@ async def generate_one(item: QuestionItem):
         "key_term": item.key_term,
         "answer_text": item.answer,
         "explanation": item.explanation,
-        "beef_audio": "tmp/countdown_beep.mp3",
         "video_output_fn": output_filename,
         "video_file_exists": Path(output_file).exists(),
         "Image": Path(background_image_file).exists(),
@@ -456,19 +473,19 @@ async def on_startup():
     logger.info("✅ FFmpeg 설치 확인됨, 서버 시작!")
 
 if __name__ == "__main__":
-    question_file = download_file("https://drive.google.com/file/d/10dM1fc_hSJa9Y4-9vaSxRSjh2I0Twgs8/view?usp=drive_link", "question.mp3")
-    answer_file = download_file("https://drive.google.com/file/d/1ONaATr2Z5dbD2VlOeDG4TbOsjOOyjPrc/view?usp=drive_link", "answer.mp3")
-    explanation_file = download_file("https://drive.google.com/file/d/19df-6d0SGO5K6i2jIzmaDy-_xmB6lm2B/view?usp=drive_link", "explanation.mp3")
-    background_file = download_file("https://drive.google.com/file/d/1vjc4FlwhjfiT6Vcb2EE1Jg0FrE3ZcFFR/view?usp=drive_link", "background.png")
-    image_file = download_file("https://drive.google.com/file/d/1EXR7malg374i7SW_GfxPVXDZhQ1gkkt2/view?usp=drive_link", "image.png")
+    question_file = download_file_tmp2("https://drive.google.com/file/d/10dM1fc_hSJa9Y4-9vaSxRSjh2I0Twgs8/view?usp=drive_link", "question.mp3")
+    answer_file = download_file_tmp2("https://drive.google.com/file/d/1ONaATr2Z5dbD2VlOeDG4TbOsjOOyjPrc/view?usp=drive_link", "answer.mp3")
+    explanation_file = download_file_tmp2("https://drive.google.com/file/d/19df-6d0SGO5K6i2jIzmaDy-_xmB6lm2B/view?usp=drive_link", "explanation.mp3")
+    background_file = download_file_tmp2("https://drive.google.com/file/d/1vjc4FlwhjfiT6Vcb2EE1Jg0FrE3ZcFFR/view?usp=drive_link", "background.png")
+    image_file = download_file_tmp2("https://drive.google.com/file/d/1EXR7malg374i7SW_GfxPVXDZhQ1gkkt2/view?usp=drive_link", "image.png")
 
     test_data = {
-        "question_audio": "tmp/question.mp3",
-        "answer_audio": "tmp/answer.mp3",
-        "explanation_audio": "tmp/explanation.mp3",
-        "beef_audio": "tmp/countdown_beep.mp3",
-        "background_image": "tmp/background.png",
-        "image_": "tmp/image.png",
+        "question_audio": "tmp2/question.mp3",
+        "answer_audio": "tmp2/answer.mp3",
+        "explanation_audio": "tmp2/explanation.mp3",
+        "beef_audio": "tmp2/countdown_beep.mp3",
+        "background_image": "tmp2/background.png",
+        "image_": "tmp2/image.png",
         "question_text": "세종대왕이 만든 문자는?",
         "hint_text": "ㅎㄱ",
         "answer_text": "한글",
@@ -480,5 +497,6 @@ if __name__ == "__main__":
     make_quiz_video_with_title_top(test_data, output_path)
 
     print("✅ 테스트 영상 생성 완료:", output_path)
+
     logger.info("Starting ...")
     uvicorn.run("main:app", host="0.0.0.0", port=8080, log_level="info")
