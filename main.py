@@ -197,18 +197,21 @@ def download_drive_file(url: str, dest: Path) -> str:
     return str(dest)
 
 def drive_url_to_direct_link(url: str) -> str:
-    # Extract file ID
-    if "file/d/" in url:
-        file_id = url.split("file/d/")[1].split("/")[0]
-        return f"https://drive.google.com/uc?export=download&id={file_id}"
-    return url
+    # 예: https://drive.google.com/file/d/1abcDEF/view?usp=sharing
+    match = re.search(r"/d/([a-zA-Z0-9_-]+)", url)
+    if not match:
+        raise ValueError("Invalid Google Drive URL")
+    file_id = match.group(1)
+    return f"https://drive.google.com/uc?export=download&id={file_id}"
 
 class VideoMergeRequest(BaseModel):
     sheet_name: str
     merged_video_name: str
     videos: List[str]  # ✅ 중요: 문자열 리스트로 정의
+
 def download_mp4(url: str, filename: str) -> str:
     direct_url = drive_url_to_direct_link(url)
+    TMP_DIR = Path("tmp")
     path = TMP_DIR / filename
     with requests.get(direct_url, stream=True) as r:
         r.raise_for_status()
@@ -240,7 +243,6 @@ def merge_videos_ffmpeg(file_paths: list[str], output_name: str) -> str:
     subprocess.run(command, check=True)
     return str(output_path)
 
-
 @app.post("/merge-videos")
 async def merge_videos(payload: List[VideoMergeRequest]):
     results = []
@@ -250,18 +252,46 @@ async def merge_videos(payload: List[VideoMergeRequest]):
         merged_name = item.merged_video_name
         video_urls = item.videos
 
-        # 실제 로직 (예: 다운로드 → 병합 → 저장)
         print(f"[{sheet}] '{merged_name}' 병합 시작: {len(video_urls)}개 영상")
 
-        # 예시 응답 데이터
+        # 1. 각 URL에서 mp4 다운로드
+        file_paths = []
+        for i, url in enumerate(video_urls):
+            filename = f"{merged_name}_{i}.mp4"
+            try:
+                path = download_mp4(url, filename)
+                file_paths.append(path)
+            except Exception as e:
+                print(f"다운로드 실패: {url}, 에러: {e}")
+                results.append({
+                    "sheet": sheet,
+                    "merged_video_name": merged_name,
+                    "video_count": len(video_urls),
+                    "status": "fail",
+                    "error": str(e)
+                })
+                continue
+
+        # 2. FFmpeg로 병합
+        try:
+            output_path = merge_videos_ffmpeg(file_paths, merged_name)
+            status = "success"
+        except Exception as e:
+            print(f"병합 실패: {e}")
+            output_path = None
+            status = "fail"
+
+        # 3. 결과 저장
         results.append({
             "sheet": sheet,
             "merged_video_name": merged_name,
             "video_count": len(video_urls),
-            "status": "success"
+            "merged_path": output_path,
+            "status": status
         })
 
     return {"result": results}
+
 @app.get("/")
 def hello():
     logger.info("👋 INFO 로그 작동!")
