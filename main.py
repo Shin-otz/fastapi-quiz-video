@@ -70,12 +70,6 @@ class QuestionItem(BaseModel):
 class FileRequest(BaseModel):
     filename: str
 
-class VideoMergeRequest(BaseModel):
-    sheet_name: str
-    merged_video_name: str
-    videos: List[str]
-
-
 def check_ffmpeg_installed():
     try:
         result = subprocess.run(
@@ -209,6 +203,10 @@ def drive_url_to_direct_link(url: str) -> str:
         return f"https://drive.google.com/uc?export=download&id={file_id}"
     return url
 
+class VideoMergeRequest(BaseModel):
+    sheet_name: str
+    merged_video_name: str
+    videos: List[str]  # ✅ 중요: 문자열 리스트로 정의
 def download_mp4(url: str, filename: str) -> str:
     direct_url = drive_url_to_direct_link(url)
     path = TMP_DIR / filename
@@ -243,7 +241,7 @@ def merge_videos_ffmpeg(file_paths: list[str], output_name: str) -> str:
     return str(output_path)
 
 
-@app.post("/merge-videos/")
+@app.post("/merge-videos")
 async def merge_videos(payload: List[VideoMergeRequest]):
     results = []
 
