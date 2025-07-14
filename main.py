@@ -243,6 +243,7 @@ def merge_videos_ffmpeg(file_paths: list[str], output_name: str) -> str:
     command = [
         "ffmpeg",
         "-f", "concat",
+        "-y",
         "-safe", "0",
         "-i", str(list_path),
         "-c", "copy",
@@ -592,6 +593,8 @@ async def on_startup():
     check_ffmpeg_installed()
     logger.info("✅ FFmpeg 설치 확인됨, 서버 시작!")
 
+
+"""
 if __name__ == "__main__":
     question_file = download_file_tmp2("https://drive.google.com/file/d/10dM1fc_hSJa9Y4-9vaSxRSjh2I0Twgs8/view?usp=drive_link", "question.mp3")
     answer_file = download_file_tmp2("https://drive.google.com/file/d/1ONaATr2Z5dbD2VlOeDG4TbOsjOOyjPrc/view?usp=drive_link", "answer.mp3")
@@ -619,4 +622,37 @@ if __name__ == "__main__":
     print("✅ 테스트 영상 생성 완료:", output_path)
 
     logger.info("Starting ...")
+    uvicorn.run("main:app", host="0.0.0.0", port=8080, log_level="info")
+"""
+
+if __name__ == "__main__":
+    logger.info("Starting ...")
+
+    # 퀴즈 영상 병합 테스트용 Google Drive URL 목록
+    urls = [
+        "https://drive.google.com/file/d/1HqCiVP0_zLEQjWfqVY7gBJZgJQfHuh6C/view?usp=drive_link",
+        "https://drive.google.com/file/d/1YqErlJEnU-2c6532tIRQr_VrIzoacxJj/view?usp=drive_link",
+        "https://drive.google.com/file/d/1nV5qi9XOa7R7UnCEyF3RLySPV-qwGR1G/view?usp=drive_link",
+        "https://drive.google.com/file/d/1pjPGZ6DbNODsmV7p1flqGrs_dm8x3rvj/view?usp=drive_link",
+        "https://drive.google.com/file/d/1vP_W6K1t4swnaAeYmMfT9zZqjScSVMSh/view?usp=drive_link"
+    ]
+
+
+    file_paths = []
+    for i, url in enumerate(urls):
+        filename = f"local_merge_{i}.mp4"
+        try:
+            path = download_mp4(url, filename)
+            file_paths.append(path)
+        except Exception as e:
+            print(f"❌ 다운로드 실패: {url}, 에러: {e}")
+
+    # 병합 테스트
+    try:
+        merged_path = merge_videos_ffmpeg(file_paths, "local_test_merged")
+        print("✅ 병합 완료:", merged_path)
+    except Exception as e:
+        print("❌ 병합 실패:", e)
+
+    # FastAPI 실행
     uvicorn.run("main:app", host="0.0.0.0", port=8080, log_level="info")
