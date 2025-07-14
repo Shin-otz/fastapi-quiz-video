@@ -19,6 +19,7 @@ from utils.fonts import get_font
 from typing import List
 import subprocess
 import shutil
+import time
 
 # uvicorn 로거 설정
 logger = logging.getLogger("uvicorn")
@@ -227,6 +228,7 @@ def download_mp4(url: str, filename: str) -> str:
         with open(path, "wb") as f:
             for chunk in r.iter_content(chunk_size=8192):
                 f.write(chunk)
+    time.sleep(2)
     return str(path)
 
 
