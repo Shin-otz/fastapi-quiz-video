@@ -415,7 +415,7 @@ def make_quiz_video_with_title_top(data_, output_path):
             acodec='aac',
             audio_bitrate='192k',
             pix_fmt='yuv420p',
-            shortest=None,
+            shortest=True,
             movflags='+faststart'
         ).run(overwrite_output=True)
 
