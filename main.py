@@ -228,10 +228,11 @@ def download_mp4(url: str, filename: str) -> str:
         with open(path, "wb") as f:
             for chunk in r.iter_content(chunk_size=8192):
                 f.write(chunk)
-
+    while True:
+        if os.path.exists(path) and os.path.getsize(path)>1000:
+            break
     time.sleep(5)
     return str(path)
-
 
 def merge_videos_ffmpeg(file_paths: list[str], output_name: str) -> str:
     TMP_DIR = Path("tmp")
@@ -292,9 +293,13 @@ async def merge_videos(payload: List[VideoMergeRequest]):
                     "error": str(e)
                 })
                 continue
+        print("----")
+        print(file_paths)
 
         # 2. FFmpeg로 병합
         try:
+            print("----")
+            print(file_paths)
             output_path = merge_videos_ffmpeg(file_paths, merged_name)
             status = "success"
         except Exception as e:
