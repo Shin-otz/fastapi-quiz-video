@@ -140,7 +140,7 @@ def create_video(data_, output_path: str):
     beef_audio = data_["beef_audio"]
     bgimage_path = data_["background_image"]
 
-    image_input = ffmpeg.input(bgimage_path, loop=1, framerate=2)
+    image_input = ffmpeg.input(bgimage_path, loop=1, framerate=25)
     audio_input = ffmpeg.input(question_audio)
     # 2. 출력 설정 및 실행
     (
@@ -234,6 +234,17 @@ def download_mp4(url: str, filename: str) -> str:
     time.sleep(0.5)
     return str(path)
 
+def create_freeze_frame(input_path: str, freeze_path: str):
+    # freeze_path: 'tmp/video0_freeze.mp4' 같은 경로
+    subprocess.run([
+        "ffmpeg",
+        "-sseof", "-1",  # 영상 끝에서 1초 전
+        "-i", input_path,
+        "-vf", "tpad=stop_mode=clone:stop_duration=1",  # 마지막 프레임 복제 → 1초 유지
+        "-an",  # 오디오 제거
+        "-y",
+        freeze_path
+    ], check=True)
 
 def merge_videos_ffmpeg(file_paths: list[str], output_name: str) -> str:
     TMP_DIR = Path("tmp")
@@ -248,6 +259,7 @@ def merge_videos_ffmpeg(file_paths: list[str], output_name: str) -> str:
             abs_path = Path(file_path).resolve().as_posix()
             f.write(f"file '{abs_path}'\n")
 
+    """
     command = [
         "ffmpeg",
         "-f", "concat",
@@ -256,6 +268,18 @@ def merge_videos_ffmpeg(file_paths: list[str], output_name: str) -> str:
         "-i", str(list_path.resolve().as_posix()),  # 절대경로로 바꿔줌
         "-c", "copy",
         str(output_path.resolve().as_posix())
+    ]
+    """
+    command = [
+        "ffmpeg",
+        "-f", "concat",
+        "-safe", "0",
+        "-y",
+        "-i", str(list_path),
+        "-c:v", "libx264",
+        "-c:a", "aac",
+        "-strict", "experimental",
+        str(output_path)
     ]
     subprocess.run(command, check=True)
     return str(output_path)
@@ -354,7 +378,7 @@ def make_quiz_video_with_title_top(data_, output_path):
     answer_a = AudioFileClip(answer_audio).with_start(question_a.duration + 1 + 5)
     beef_a = AudioFileClip(beef_audio).with_start(question_a.duration + 1)
     explanation_a = AudioFileClip(explanation_audio).with_start(
-        question_a.duration + 1 + 5 + answer_a.duration + 0.1
+        question_a.duration + 1 + 5 + answer_a.duration + 1
     )
 
     final_audio = CompositeAudioClip([question_a, answer_a, beef_a, explanation_a]).with_fps(44100)
@@ -391,7 +415,7 @@ def make_quiz_video_with_title_top(data_, output_path):
             box=1,
             boxcolor='black@0.0',
             boxborderw=10,
-            enable='gte(t,0.05)'
+            enable='gte(t,0)'
         )
 
         # 힌트
@@ -450,7 +474,7 @@ def make_quiz_video_with_title_top(data_, output_path):
             box=1,
             boxcolor='black@0.0',
             boxborderw=10,
-            enable=f'gte(t,{question_a.duration + 1 + 5 + answer_a.duration})'
+            enable=f'gte(t,{question_a.duration + 1 + 5 + answer_a.duration+1})'
         )
 
         ffmpeg.output(
@@ -564,7 +588,6 @@ def check_audio_post(data: FileRequest):
     else:
         return {"error": f"{filename} not found"}
 
-
 @app.get("/check-file")
 def check_file(filename: str = Query(..., description="파일 이름")):
     file_path = Path(f"{filename}")
@@ -636,12 +659,14 @@ if __name__ == "__main__":
     logger.info("Starting ...")
     # 퀴즈 영상 병합 테스트용 Google Drive URL 목록
     urls = [
-        "https://drive.google.com/file/d/1HqCiVP0_zLEQjWfqVY7gBJZgJQfHuh6C/view?usp=drive_link",
-        "https://drive.google.com/file/d/1YqErlJEnU-2c6532tIRQR_VrIzoacxJj/view?usp=drive_link",
-        "https://drive.google.com/file/d/1nV5qi9XOa7R7UnCEyF3RLySPV-qwGR1G/view?usp=drive_link",
-        "https://drive.google.com/file/d/1pjPGZ6DbNODsmV7plflqGrs_dm8x3rvj/view?usp=drive_link",
-        "https://drive.google.com/file/d/1vP_W6K1t4swnaAeYmMfT9zZqjScSVMSh/view?usp=drive_link"
+        "https://drive.google.com/file/d/1vFthtAgN6PQUfqs-3eBz76V6EcCTWwBV/view?usp=drive_link",
+        "https://drive.google.com/file/d/1R_u9XfRxxuJK6C7HJzPN5vuyhzi8QhIE/view?usp=drive_link",
+        "https://drive.google.com/file/d/1EzkJBF1FAEB7pAhDPQqzmbeCnClhllQc/view?usp=drive_link",
+        "https://drive.google.com/file/d/1D_qVeCUJ7KMNfStYOMng6lmlhrG_UBbP/view?usp=drive_link",
+        "https://drive.google.com/file/d/1DByZb4w_V8_Y8uniayUyzIgDG7EioRrU/view?usp=drive_link",
+        "https://drive.google.com/file/d/1-jzI67Tf458ud6d8BmX-R4VePEEYkboV/view?usp=drive_link"
     ]
+
 
     file_paths = []
     for i, url in enumerate(urls):

@@ -16,7 +16,10 @@ from mutagen.mp3 import MP3
 from moviepy import *
 from utils.text_highlight import make_highlighted_text
 from utils.fonts import get_font
-
+from typing import List
+import subprocess
+import shutil
+import time
 
 # uvicorn 로거 설정
 logger = logging.getLogger("uvicorn")
@@ -32,7 +35,7 @@ Path("tmp").mkdir(parents=True, exist_ok=True)
 app = FastAPI()
 app.mount("/static", StaticFiles(directory="tmp"), name="static")
 
-def wrap_text(text, max_chars=22):
+def wrap_text(text, max_chars=30):
     """
     입력 텍스트가 너무 길면 강제로 줄바꿈(\n) 추가
     기본값: 18글자 넘으면 줄바꿈 (대략 가로 30%)
@@ -69,7 +72,6 @@ class QuestionItem(BaseModel):
 
 class FileRequest(BaseModel):
     filename: str
-
 
 def check_ffmpeg_installed():
     try:
@@ -188,6 +190,157 @@ def create_video2(image_path: str, audio_path: str, output_path: str):
         logger.error(str(ex))
         raise HTTPException(status_code=500, detail=f"비디오 생성 중 알 수 없는 오류 발생{image_path} ::{audio_path} :: {output_path}")
 
+@app.get("/check-list")
+def check_list(filename: str):
+    file_path = Path(f"tmp/{filename}_list.txt")
+    if file_path.exists():
+        return FileResponse(path=str(file_path), media_type="text/plain")
+    else:
+        return {"error": "list.txt 파일이 존재하지 않음"}
+
+def download_drive_file(url: str, dest: Path) -> str:
+    # URL에서 ID 추출
+    file_id = url.split("/d/")[1].split("/")[0]
+    direct_url = f"https://drive.google.com/uc?export=download&id={file_id}"
+    r = requests.get(direct_url)
+    dest.write_bytes(r.content)
+    return str(dest)
+
+def drive_url_to_direct_link(url: str) -> str:
+    # 예: https://drive.google.com/file/d/1abcDEF/view?usp=sharing
+    match = re.search(r"/d/([a-zA-Z0-9_-]+)", url)
+    if not match:
+        raise ValueError("Invalid Google Drive URL")
+    file_id = match.group(1)
+    return f"https://drive.google.com/uc?export=download&id={file_id}"
+
+class VideoMergeRequest(BaseModel):
+    sheet_name: str
+    merged_video_name: str
+    videos: List[str]  # ✅ 중요: 문자열 리스트로 정의
+
+def download_mp4(url: str, filename: str) -> str:
+    direct_url = drive_url_to_direct_link(url)
+    TMP_DIR = Path("tmp")
+    path = TMP_DIR / filename
+    with requests.get(direct_url, stream=True) as r:
+        r.raise_for_status()
+        with open(path, "wb") as f:
+            for chunk in r.iter_content(chunk_size=8192):
+                f.write(chunk)
+    while True:
+        if os.path.exists(path) and os.path.getsize(path)>1000:
+            break
+    time.sleep(0.5)
+    return str(path)
+
+
+def create_freeze_frame(input_path: str, freeze_path: str):
+    # freeze_path: 'tmp/video0_freeze.mp4' 같은 경로
+    subprocess.run([
+        "ffmpeg",
+        "-sseof", "-1",  # 영상 끝에서 1초 전
+        "-i", input_path,
+        "-vf", "tpad=stop_mode=clone:stop_duration=1",  # 마지막 프레임 복제 → 1초 유지
+        "-an",  # 오디오 제거
+        "-y",
+        freeze_path
+    ], check=True)
+
+def merge_videos_ffmpeg(file_paths: list[str], output_name: str) -> str:
+    TMP_DIR = Path("tmp")
+    TMP_DIR.mkdir(exist_ok=True)
+
+    list_path = TMP_DIR / f"{output_name}_list.txt"
+    output_path = TMP_DIR / f"{output_name}.mp4"
+
+    # ✅ 절대경로 사용
+    with open(list_path, "w", encoding="utf-8") as f:
+        for file_path in file_paths:
+            abs_path = Path(file_path).resolve().as_posix()
+            f.write(f"file '{abs_path}'\n")
+
+    """
+    command = [
+        "ffmpeg",
+        "-f", "concat",
+        "-safe", "0",
+        "-y",
+        "-i", str(list_path.resolve().as_posix()),  # 절대경로로 바꿔줌
+        "-c", "copy",
+        str(output_path.resolve().as_posix())
+    ]
+    """
+    command = [
+        "ffmpeg",
+        "-f", "concat",
+        "-safe", "0",
+        "-y",
+        "-i", str(list_path),
+        "-c:v", "libx264",
+        "-c:a", "aac",
+        "-strict", "experimental",
+        str(output_path)
+    ]
+    subprocess.run(command, check=True)
+    return str(output_path)
+
+
+@app.post("/merge-videos")
+async def merge_videos(payload: List[VideoMergeRequest]):
+    results = []
+
+    for item in payload:
+        sheet = item.sheet_name
+        merged_name = item.merged_video_name
+        video_urls = item.videos
+
+        print(f"[{sheet}] '{merged_name}' 병합 시작: {len(video_urls)}개 영상")
+
+        # 1. 각 URL에서 mp4 다운로드
+        file_paths = []
+        for i, url in enumerate(video_urls):
+            filename = f"{merged_name}_{i}.mp4"
+            try:
+                path = download_mp4(url, filename)
+                file_paths.append(path)
+            except Exception as e:
+                print(f"다운로드 실패: {url}, 에러: {e}")
+                results.append({
+                    "sheet": sheet,
+                    "merged_video_name": merged_name,
+                    "video_count": len(video_urls),
+                    "status": "fail",
+                    "error": str(e)
+                })
+                continue
+        print("----")
+        print(file_paths)
+
+        # 2. FFmpeg로 병합
+        try:
+            print("----")
+            print(file_paths)
+            output_path = merge_videos_ffmpeg(file_paths, merged_name)
+            status = "success"
+        except Exception as e:
+            print(f"병합 실패: {e}")
+            output_path = file_paths
+            status = "fail"
+
+        # 3. 결과 저장
+        results.append({
+            "sheet": sheet,
+            "merged_video_name": merged_name,
+            "video_count": len(video_urls),
+            "merged_path": output_path,
+            "list_path": video_urls,
+            "ffmpeg": shutil.which("ffmpeg"),
+            "status": status
+        })
+
+    return {"result": results}
+
 @app.get("/")
 def hello():
     logger.info("👋 INFO 로그 작동!")
@@ -214,6 +367,7 @@ def make_quiz_video_with_title_top(data_, output_path):
     answer_text = data_["answer_text"]
     explanation_text = data_["explanation"]
     key_term = data_["key_term"]
+    ID = data_["ID"]
 
     # 오디오 길이 정보 (안 쓰이므로 생략 가능)
     q_length = MP3(question_audio).info.length
@@ -225,11 +379,11 @@ def make_quiz_video_with_title_top(data_, output_path):
     answer_a = AudioFileClip(answer_audio).with_start(question_a.duration + 1 + 5)
     beef_a = AudioFileClip(beef_audio).with_start(question_a.duration + 1)
     explanation_a = AudioFileClip(explanation_audio).with_start(
-        question_a.duration + 1 + 5 + answer_a.duration + 0.1
+        question_a.duration + 1 + 5 + answer_a.duration + 1
     )
 
     final_audio = CompositeAudioClip([question_a, answer_a, beef_a, explanation_a]).with_fps(44100)
-    output_audio_path = os.path.join("tmp", "final_.mp3")
+    output_audio_path = os.path.join("tmp", f"final_{ID}.mp3")
     final_audio.write_audiofile(output_audio_path)
 
     try:
@@ -239,12 +393,12 @@ def make_quiz_video_with_title_top(data_, output_path):
 
         # 제목
         video = base.drawtext(
-            text='한국사 퀴즈~',
+            text='한국사 퀴즈',
             fontfile=font,
-            fontsize=25,
+            fontsize=33,
             fontcolor='black',
             x='(w-text_w)/2',
-            y='20',
+            y='16',
             box=1,
             boxcolor='black@0.0',
             boxborderw=10,
@@ -255,26 +409,26 @@ def make_quiz_video_with_title_top(data_, output_path):
         video = video.drawtext(
             text=wrap_text(question_text),
             fontfile=font,
-            fontsize=28,
+            fontsize=30,
             fontcolor='black',
             x='200',
             y='120',
             box=1,
             boxcolor='black@0.0',
             boxborderw=10,
-            enable='gte(t,0.5)'
+            enable='gte(t,0)'
         )
 
         # 힌트
         video = video.drawtext(
             text=f"힌트: {hint_text}",
             fontfile=font,
-            fontsize=42,
-            fontcolor='yellow',
+            fontsize=30,
+            fontcolor='blue',
             x='(w-text_w)/2',
             y='250',
             box=1,
-            boxcolor='black@0.5',
+            boxcolor='black@0.01',
             boxborderw=10,
             enable=f'between(t,{question_a.duration+4},{question_a.duration+1+5})'
         )
@@ -298,14 +452,14 @@ def make_quiz_video_with_title_top(data_, output_path):
 
         # 정답
         video = video.drawtext(
-            text=answer_text,
+            text=f"정답: {answer_text}",
             fontfile=font,
-            fontsize=42,
-            fontcolor='cyan',
+            fontsize=30,
+            fontcolor='black',
             x='(w-text_w)/2',
             y='250',
             box=1,
-            boxcolor='black@0.5',
+            boxcolor='black@0.0',
             boxborderw=10,
             enable=f'gte(t,{question_a.duration + 1 + 5})'
         )
@@ -314,14 +468,14 @@ def make_quiz_video_with_title_top(data_, output_path):
         video = video.drawtext(
             text=wrap_text(explanation_text),
             fontfile=font,
-            fontsize=42,
-            fontcolor='cyan',
+            fontsize=30,
+            fontcolor='black',
             x='150',
             y='320',
             box=1,
-            boxcolor='black@0.5',
+            boxcolor='black@0.0',
             boxborderw=10,
-            enable=f'gte(t,{question_a.duration + 1 + 5 + answer_a.duration})'
+            enable=f'gte(t,{question_a.duration + 1 + 5 + answer_a.duration+1})'
         )
 
         ffmpeg.output(
@@ -376,7 +530,8 @@ async def generate_one(item: QuestionItem):
         "hint_text": item.hint,
         "key_term": item.key_term,
         "answer_text": item.answer,
-        "explanation": item.explanation
+        "explanation": item.explanation,
+        "ID": question_audio_id
     }
 
     make_quiz_video_with_title_top(data_, output_file)
@@ -388,6 +543,7 @@ async def generate_one(item: QuestionItem):
 
     return {
         "status": "ok",
+        "ID": question_audio_id,
         "question_audio": question_file,
         "answer_audio": answer_file,
         "explanation_audio": explanation_file,
@@ -433,7 +589,6 @@ def check_audio_post(data: FileRequest):
     else:
         return {"error": f"{filename} not found"}
 
-
 @app.get("/check-file")
 def check_file(filename: str = Query(..., description="파일 이름")):
     file_path = Path(f"{filename}")
@@ -469,6 +624,8 @@ async def on_startup():
     check_ffmpeg_installed()
     logger.info("✅ FFmpeg 설치 확인됨, 서버 시작!")
 
+
+"""
 if __name__ == "__main__":
     question_file = download_file_tmp2("https://drive.google.com/file/d/10dM1fc_hSJa9Y4-9vaSxRSjh2I0Twgs8/view?usp=drive_link", "question.mp3")
     answer_file = download_file_tmp2("https://drive.google.com/file/d/1ONaATr2Z5dbD2VlOeDG4TbOsjOOyjPrc/view?usp=drive_link", "answer.mp3")
@@ -496,4 +653,38 @@ if __name__ == "__main__":
     print("✅ 테스트 영상 생성 완료:", output_path)
 
     logger.info("Starting ...")
+    uvicorn.run("main:app", host="0.0.0.0", port=8080, log_level="info")
+"""
+
+if __name__ == "__main__":
+    logger.info("Starting ...")
+    # 퀴즈 영상 병합 테스트용 Google Drive URL 목록
+    urls = [
+        "https://drive.google.com/file/d/1vFthtAgN6PQUfqs-3eBz76V6EcCTWwBV/view?usp=drive_link",
+        "https://drive.google.com/file/d/1R_u9XfRxxuJK6C7HJzPN5vuyhzi8QhIE/view?usp=drive_link",
+        "https://drive.google.com/file/d/1EzkJBF1FAEB7pAhDPQqzmbeCnClhllQc/view?usp=drive_link",
+        "https://drive.google.com/file/d/1D_qVeCUJ7KMNfStYOMng6lmlhrG_UBbP/view?usp=drive_link",
+        "https://drive.google.com/file/d/1DByZb4w_V8_Y8uniayUyzIgDG7EioRrU/view?usp=drive_link",
+        "https://drive.google.com/file/d/1-jzI67Tf458ud6d8BmX-R4VePEEYkboV/view?usp=drive_link"
+    ]
+
+
+    file_paths = []
+    for i, url in enumerate(urls):
+        filename = f"local_merge_{i}.mp4"
+        try:
+            print(url)
+            path = download_mp4(url, filename)
+            file_paths.append(path)
+        except Exception as e:
+            print(f"❌ 다운로드 실패: {url}, 에러: {e}")
+
+    # 병합 테스트
+    try:
+        merged_path = merge_videos_ffmpeg(file_paths, "local_test_merged")
+        print("✅ 병합 완료:", merged_path)
+    except Exception as e:
+        print("❌ 병합 실패:", e)
+
+    # FastAPI 실행
     uvicorn.run("main:app", host="0.0.0.0", port=8080, log_level="info")
