@@ -306,7 +306,7 @@ async def merge_videos(payload: List[VideoMergeRequest]):
             "video_count": len(video_urls),
             "merged_path": output_path,
             "list_path": video_urls,
-            "ffmpeg": shutil.which("ffmpeg")
+            "ffmpeg": shutil.which("ffmpeg"),
             "status": status
         })
 
