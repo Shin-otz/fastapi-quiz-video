@@ -140,7 +140,7 @@ def create_video(data_, output_path: str):
     beef_audio = data_["beef_audio"]
     bgimage_path = data_["background_image"]
 
-    image_input = ffmpeg.input(bgimage_path, loop=1, framerate=25)
+    image_input = ffmpeg.input(bgimage_path, loop=1, framerate=2)
     audio_input = ffmpeg.input(question_audio)
     # 2. 출력 설정 및 실행
     (
@@ -234,17 +234,7 @@ def download_mp4(url: str, filename: str) -> str:
     time.sleep(0.5)
     return str(path)
 
-def create_freeze_frame(input_path: str, freeze_path: str):
-    # freeze_path: 'tmp/video0_freeze.mp4' 같은 경로
-    subprocess.run([
-        "ffmpeg",
-        "-sseof", "-1",  # 영상 끝에서 1초 전
-        "-i", input_path,
-        "-vf", "tpad=stop_mode=clone:stop_duration=1",  # 마지막 프레임 복제 → 1초 유지
-        "-an",  # 오디오 제거
-        "-y",
-        freeze_path
-    ], check=True)
+
 
 def merge_videos_ffmpeg(file_paths: list[str], output_name: str) -> str:
     TMP_DIR = Path("tmp")
@@ -381,12 +371,17 @@ def make_quiz_video_with_title_top(data_, output_path):
         question_a.duration + 1 + 5 + answer_a.duration + 1
     )
 
-    final_audio = CompositeAudioClip([question_a, answer_a, beef_a, explanation_a]).with_fps(44100)
+    # 1. 오디오 전체 길이 계산
+    total_duration = question_a.duration + 1 + 5 + answer_a.duration + 1 + explanation_a.duration
+
+    # 2. 최종 오디오 생성 (fps는 그대로)
+    final_audio = CompositeAudioClip([question_a, answer_a, beef_a, explanation_a])
     output_audio_path = os.path.join("tmp", f"final_{ID}.mp3")
-    final_audio.write_audiofile(output_audio_path)
+    final_audio.write_audiofile(output_audio_path, fps=44100)  # fps 명시
 
     try:
-        image_input = ffmpeg.input(bgimage_path, loop=1)
+        # 3. ffmpeg 입력 정의 시 → 이미지도 전체 오디오 길이에 맞춰 반복
+        image_input = ffmpeg.input(bgimage_path, loop=1, framerate=25, t=total_duration)
         audio_input = ffmpeg.input(output_audio_path)
         base = image_input.filter('scale', 1080, 720)
 
@@ -484,7 +479,7 @@ def make_quiz_video_with_title_top(data_, output_path):
             acodec='aac',
             audio_bitrate='192k',
             pix_fmt='yuv420p',
-            shortest=None,
+            shortest=True,  # ✅ 이걸 꼭 True로 해야 sync
             movflags='+faststart'
         ).run(overwrite_output=True)
 
