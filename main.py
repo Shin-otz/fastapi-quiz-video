@@ -228,7 +228,8 @@ def download_mp4(url: str, filename: str) -> str:
         with open(path, "wb") as f:
             for chunk in r.iter_content(chunk_size=8192):
                 f.write(chunk)
-    time.sleep(2)
+
+    time.sleep(5)
     return str(path)
 
 
