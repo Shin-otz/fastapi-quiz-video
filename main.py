@@ -231,39 +231,35 @@ def download_mp4(url: str, filename: str) -> str:
     while True:
         if os.path.exists(path) and os.path.getsize(path)>1000:
             break
-    time.sleep(5)
+    time.sleep(0.5)
     return str(path)
+
 
 def merge_videos_ffmpeg(file_paths: list[str], output_name: str) -> str:
     TMP_DIR = Path("tmp")
     TMP_DIR.mkdir(exist_ok=True)
+
     list_path = TMP_DIR / f"{output_name}_list.txt"
-
-    # list.txt 만들기
-    with open(list_path, "w") as f:
-        for file_path in file_paths:
-            f.write(f"file '{file_path}'\n")
-
     output_path = TMP_DIR / f"{output_name}.mp4"
+
+    # ✅ 절대경로 사용
+    with open(list_path, "w", encoding="utf-8") as f:
+        for file_path in file_paths:
+            abs_path = Path(file_path).resolve().as_posix()
+            f.write(f"file '{abs_path}'\n")
+
     command = [
         "ffmpeg",
         "-f", "concat",
-        "-y",
         "-safe", "0",
-        "-i", str(list_path),
+        "-y",
+        "-i", str(list_path.resolve().as_posix()),  # 절대경로로 바꿔줌
         "-c", "copy",
-        str(output_path)
+        str(output_path.resolve().as_posix())
     ]
-
-    try:
-        result = subprocess.run(command, stdout=subprocess.PIPE,stderr=subprocess.PIPE,check=True, capture_output=True, text=True)
-        print("FFmpeg 성공 로그:", result.stdout)
-    except subprocess.CalledProcessError as e:
-        print("FFmpeg 실패 STDERR:", e.stderr)
-        print("실패 STDOUT:", e.stdout)
-        raise
-
+    subprocess.run(command, check=True)
     return str(output_path)
+
 
 @app.post("/merge-videos")
 async def merge_videos(payload: List[VideoMergeRequest]):
@@ -395,7 +391,7 @@ def make_quiz_video_with_title_top(data_, output_path):
             box=1,
             boxcolor='black@0.0',
             boxborderw=10,
-            enable='gte(t,0.1)'
+            enable='gte(t,0.05)'
         )
 
         # 힌트
@@ -638,21 +634,20 @@ if __name__ == "__main__":
 
 if __name__ == "__main__":
     logger.info("Starting ...")
-
     # 퀴즈 영상 병합 테스트용 Google Drive URL 목록
     urls = [
         "https://drive.google.com/file/d/1HqCiVP0_zLEQjWfqVY7gBJZgJQfHuh6C/view?usp=drive_link",
-        "https://drive.google.com/file/d/1YqErlJEnU-2c6532tIRQr_VrIzoacxJj/view?usp=drive_link",
+        "https://drive.google.com/file/d/1YqErlJEnU-2c6532tIRQR_VrIzoacxJj/view?usp=drive_link",
         "https://drive.google.com/file/d/1nV5qi9XOa7R7UnCEyF3RLySPV-qwGR1G/view?usp=drive_link",
-        "https://drive.google.com/file/d/1pjPGZ6DbNODsmV7p1flqGrs_dm8x3rvj/view?usp=drive_link",
+        "https://drive.google.com/file/d/1pjPGZ6DbNODsmV7plflqGrs_dm8x3rvj/view?usp=drive_link",
         "https://drive.google.com/file/d/1vP_W6K1t4swnaAeYmMfT9zZqjScSVMSh/view?usp=drive_link"
     ]
-
 
     file_paths = []
     for i, url in enumerate(urls):
         filename = f"local_merge_{i}.mp4"
         try:
+            print(url)
             path = download_mp4(url, filename)
             file_paths.append(path)
         except Exception as e:
