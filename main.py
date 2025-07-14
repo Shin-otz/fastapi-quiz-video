@@ -18,6 +18,7 @@ from utils.text_highlight import make_highlighted_text
 from utils.fonts import get_font
 from typing import List
 import subprocess
+import shutil
 
 # uvicorn 로거 설정
 logger = logging.getLogger("uvicorn")
@@ -305,6 +306,7 @@ async def merge_videos(payload: List[VideoMergeRequest]):
             "video_count": len(video_urls),
             "merged_path": output_path,
             "list_path": video_urls,
+            "ffmpeg": shutil.which("ffmpeg")
             "status": status
         })
 
