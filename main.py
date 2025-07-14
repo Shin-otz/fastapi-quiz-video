@@ -295,7 +295,7 @@ async def merge_videos(payload: List[VideoMergeRequest]):
             status = "success"
         except Exception as e:
             print(f"병합 실패: {e}")
-            output_path = None
+            output_path = file_paths
             status = "fail"
 
         # 3. 결과 저장
@@ -304,6 +304,7 @@ async def merge_videos(payload: List[VideoMergeRequest]):
             "merged_video_name": merged_name,
             "video_count": len(video_urls),
             "merged_path": output_path,
+            "list_path": video_urls,
             "status": status
         })
 
