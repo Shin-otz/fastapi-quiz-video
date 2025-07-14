@@ -252,7 +252,7 @@ def merge_videos_ffmpeg(file_paths: list[str], output_name: str) -> str:
     ]
 
     try:
-        result = subprocess.run(command, check=True, capture_output=True, text=True)
+        result = subprocess.run(command, stdout=subprocess.PIPE,stderr=subprocess.PIPE,check=True, capture_output=True, text=True)
         print("FFmpeg 성공 로그:", result.stdout)
     except subprocess.CalledProcessError as e:
         print("FFmpeg 실패 STDERR:", e.stderr)
