@@ -132,64 +132,6 @@ def download_file_tmp2(url: str, filename: str) -> str:
             f.write(r.content)
     return str(path)
 
-def create_video(data_, output_path: str):
-
-    question_audio = data_["question_audio"]
-    answer_audio = data_["answer_audio"]
-    explanation_audio = data_["explanation_audio"]
-    beef_audio = data_["beef_audio"]
-    bgimage_path = data_["background_image"]
-
-    image_input = ffmpeg.input(bgimage_path, loop=1, framerate=2)
-    audio_input = ffmpeg.input(question_audio)
-    # 2. 출력 설정 및 실행
-    (
-        ffmpeg
-        .output(
-            image_input,
-            audio_input,
-            output_path,
-            vcodec='libx264',
-            acodec='aac',
-            audio_bitrate='192k',
-            pix_fmt='yuv420p',
-            shortest=None,  # shortest=True도 가능
-            movflags='+faststart'
-        )
-        .run(overwrite_output=True)
-    )
-
-def create_video2(image_path: str, audio_path: str, output_path: str):
-    try:
-        logger.info(f"🎧 오디오 경로: {audio_path}")
-        logger.info(f"🖼️ 이미지 경로: {image_path}")
-
-        # 오디오 길이 확인
-        probe = ffmpeg.probe(audio_path)
-        logger.info(f"ffprobe 결과: {probe}")
-        duration = float(probe["format"]["duration"])
-
-        (
-            ffmpeg
-            .input(image_path, loop=1, t=duration)
-            .input(audio_path)
-            .output(output_path, vcodec='libx264', acodec='aac', pix_fmt='yuv420p', shortest=None)
-            .overwrite_output()
-            .run(capture_stdout=True, capture_stderr=True)
-        )
-
-        logger.info(f"✅ 비디오 생성 완료: {output_path}")
-
-    except ffmpeg.Error as e:
-        logger.error("❌ FFmpeg 처리 오류 발생:")
-        logger.error(e.stderr.decode())
-        raise HTTPException(status_code=500, detail="FFmpeg 실행 오류")
-
-    except Exception as ex:
-        logger.error("❌ 일반 예외 발생:")
-        logger.error(str(ex))
-        raise HTTPException(status_code=500, detail=f"비디오 생성 중 알 수 없는 오류 발생{image_path} ::{audio_path} :: {output_path}")
-
 @app.get("/check-list")
 def check_list(filename: str):
     file_path = Path(f"tmp/{filename}_list.txt")
@@ -235,7 +177,6 @@ def download_mp4(url: str, filename: str) -> str:
     return str(path)
 
 
-
 def merge_videos_ffmpeg(file_paths: list[str], output_name: str) -> str:
     TMP_DIR = Path("tmp")
     TMP_DIR.mkdir(exist_ok=True)
@@ -264,7 +205,7 @@ def merge_videos_ffmpeg(file_paths: list[str], output_name: str) -> str:
         "ffmpeg",
         "-f", "concat",
         "-safe", "0",
-        "-y",
+        "-y"
         "-i", str(list_path),
         "-c:v", "libx264",
         "-c:a", "aac",
@@ -371,17 +312,12 @@ def make_quiz_video_with_title_top(data_, output_path):
         question_a.duration + 1 + 5 + answer_a.duration + 1
     )
 
-    # 1. 오디오 전체 길이 계산
-    total_duration = question_a.duration + 1 + 5 + answer_a.duration + 1 + explanation_a.duration
-
-    # 2. 최종 오디오 생성 (fps는 그대로)
-    final_audio = CompositeAudioClip([question_a, answer_a, beef_a, explanation_a])
+    final_audio = CompositeAudioClip([question_a, answer_a, beef_a, explanation_a]).with_fps(44100)
     output_audio_path = os.path.join("tmp", f"final_{ID}.mp3")
-    final_audio.write_audiofile(output_audio_path, fps=44100)  # fps 명시
+    final_audio.write_audiofile(output_audio_path)
 
     try:
-        # 3. ffmpeg 입력 정의 시 → 이미지도 전체 오디오 길이에 맞춰 반복
-        image_input = ffmpeg.input(bgimage_path, loop=1, framerate=25, t=total_duration)
+        image_input = ffmpeg.input(bgimage_path, loop=1)
         audio_input = ffmpeg.input(output_audio_path)
         base = image_input.filter('scale', 1080, 720)
 
@@ -479,7 +415,7 @@ def make_quiz_video_with_title_top(data_, output_path):
             acodec='aac',
             audio_bitrate='192k',
             pix_fmt='yuv420p',
-            shortest=True,  # ✅ 이걸 꼭 True로 해야 sync
+            shortest=None,
             movflags='+faststart'
         ).run(overwrite_output=True)
 
@@ -654,14 +590,12 @@ if __name__ == "__main__":
     logger.info("Starting ...")
     # 퀴즈 영상 병합 테스트용 Google Drive URL 목록
     urls = [
-        "https://drive.google.com/file/d/1vFthtAgN6PQUfqs-3eBz76V6EcCTWwBV/view?usp=drive_link",
-        "https://drive.google.com/file/d/1R_u9XfRxxuJK6C7HJzPN5vuyhzi8QhIE/view?usp=drive_link",
-        "https://drive.google.com/file/d/1EzkJBF1FAEB7pAhDPQqzmbeCnClhllQc/view?usp=drive_link",
-        "https://drive.google.com/file/d/1D_qVeCUJ7KMNfStYOMng6lmlhrG_UBbP/view?usp=drive_link",
-        "https://drive.google.com/file/d/1DByZb4w_V8_Y8uniayUyzIgDG7EioRrU/view?usp=drive_link",
-        "https://drive.google.com/file/d/1-jzI67Tf458ud6d8BmX-R4VePEEYkboV/view?usp=drive_link"
+        "https://drive.google.com/file/d/1HqCiVP0_zLEQjWfqVY7gBJZgJQfHuh6C/view?usp=drive_link",
+        "https://drive.google.com/file/d/1YqErlJEnU-2c6532tIRQR_VrIzoacxJj/view?usp=drive_link",
+        "https://drive.google.com/file/d/1nV5qi9XOa7R7UnCEyF3RLySPV-qwGR1G/view?usp=drive_link",
+        "https://drive.google.com/file/d/1pjPGZ6DbNODsmV7plflqGrs_dm8x3rvj/view?usp=drive_link",
+        "https://drive.google.com/file/d/1vP_W6K1t4swnaAeYmMfT9zZqjScSVMSh/view?usp=drive_link"
     ]
-
 
     file_paths = []
     for i, url in enumerate(urls):
