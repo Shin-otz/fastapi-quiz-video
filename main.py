@@ -205,7 +205,7 @@ def merge_videos_ffmpeg(file_paths: list[str], output_name: str) -> str:
         "ffmpeg",
         "-f", "concat",
         "-safe", "0",
-        "-y"
+        "-y",
         "-i", str(list_path),
         "-c:v", "libx264",
         "-c:a", "aac",
