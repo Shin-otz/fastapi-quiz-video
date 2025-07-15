@@ -318,7 +318,7 @@ def make_quiz_video_with_title_top(data_, output_path):
     final_audio.write_audiofile(output_audio_path)
 
     try:
-        image_input = ffmpeg.input(bgimage_path, loop=1, t=total_duration)
+        image_input = ffmpeg.input(bgimage_path, loop=1)
         audio_input = ffmpeg.input(output_audio_path)
         base = image_input.filter('scale', 1080, 720)
 
