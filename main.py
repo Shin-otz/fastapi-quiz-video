@@ -200,7 +200,7 @@ def merge_videos_ffmpeg(file_paths: list[str], output_name: str) -> str:
         "-c", "copy",
         str(output_path.resolve().as_posix())
     ]
-    """
+    
     command = [
         "ffmpeg",
         "-f", "concat",
@@ -212,6 +212,18 @@ def merge_videos_ffmpeg(file_paths: list[str], output_name: str) -> str:
         "-strict", "experimental",
         str(output_path)
     ]
+    """
+    command = [
+        "ffmpeg",
+        "-f", "concat",
+        "-safe", "0",
+        "-y",
+        "-i", str(list_path),
+        "-c", "copy",
+        "-c:a", "aac",
+        str(output_path.resolve().as_posix())
+    ]
+
     subprocess.run(command, check=True)
     return str(output_path)
 
