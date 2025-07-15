@@ -283,11 +283,86 @@ async def merge_videos(payload: List[VideoMergeRequest]):
 
     return {"result": results}
 
+
+class NextItem(BaseModel):
+    next_text_mp3_url: str
+    next_bg_url: str
+
+
+@app.post("/generate-mp4_next")
+async def generate_next(item: NextItem):
+    # 🔽 각 URL에 대해 고유 ID 기반 파일명 생성
+    next_audio_id = extract_drive_id(item.next_text_mp3_url)
+    background_id = extract_drive_id(item.next_bg_url)
+
+    # 🔽 파일 다운로드
+    next_mp3_file = download_file(item.next_text_mp3_url, f"next_mp3_{next_audio_id}.mp3")
+    background_image_file = download_file(item.next_bg_url, f"next_bg_{background_id}.png")
+
+    # 🔽 출력 파일명
+    output_filename = f"next_{next_audio_id}.mp4"
+    output_file = f"tmp/{output_filename}"
+
+    data_ = {
+        "next_mp3": next_mp3_file,
+        "next_bg_image": background_image_file,
+    }
+
+    make_next_mp4(data_, output_file)
+
+    # create_video(data_, (output_file))
+
+    BASE_URL = "https://primary-production-8af2.up.railway.app"
+    public_video_url = f"{BASE_URL}/static/{output_filename}"
+
+    return {
+        "status": "ok",
+        "next_mp3": next_mp3_file,
+        "next_bg_image": background_image_file,
+        "next_mp4": output_file
+    }
+
+def make_next_mp4(data_, output_path):
+    next_mp3_path = data_["next_mp3"]
+    bgimage_path = data_["next_bg_image"]
+
+    try:
+        # 이미지 입력 (반복), 프레임레이트 1fps 지정
+        image_input = ffmpeg.input(bgimage_path, loop=1, framerate=1)
+        # 스케일 필터 적용
+        base = image_input.filter('scale', 1080, 720)
+
+        # 오디오 입력
+        audio_input = ffmpeg.input(next_mp3_path)
+
+        (
+            ffmpeg
+            .output(
+                base, audio_input,
+                output_path,
+                vcodec='libx264',
+                acodec='aac',
+                audio_bitrate='192k',
+                pix_fmt='yuv420p',
+                shortest=None,   # <= 이 줄은 삭제하는 게 좋음
+                movflags='+faststart'
+            )
+            .overwrite_output()
+            .run()
+        )
+
+        print(f"✅ 생성 완료: {output_path}")
+
+    except ffmpeg.Error as e:
+        err_msg = e.stderr.decode() if e.stderr else str(e)
+        print(f"❌ ffmpeg 에러 발생:\n{err_msg}")
+        raise RuntimeError(f"ffmpeg error: {err_msg}")
+
 @app.get("/")
 def hello():
     logger.info("👋 INFO 로그 작동!")
     logger.debug("🐛 DEBUG 로그 작동!")
-    file = Path(audio_file).exists()
+    file = Path(-audio_file).exists()
     return {"message": "hello"}
 
 #@app.exception_handler(Exception)
@@ -602,6 +677,7 @@ if __name__ == "__main__":
 if __name__ == "__main__":
     logger.info("Starting ...")
     # 퀴즈 영상 병합 테스트용 Google Drive URL 목록
+    """
     urls = [
         "https://drive.google.com/file/d/1HqCiVP0_zLEQjWfqVY7gBJZgJQfHuh6C/view?usp=drive_link",
         "https://drive.google.com/file/d/1YqErlJEnU-2c6532tIRQR_VrIzoacxJj/view?usp=drive_link",
@@ -627,6 +703,7 @@ if __name__ == "__main__":
         print("✅ 병합 완료:", merged_path)
     except Exception as e:
         print("❌ 병합 실패:", e)
-
+    """
     # FastAPI 실행
     uvicorn.run("main:app", host="0.0.0.0", port=8080, log_level="info")
+
