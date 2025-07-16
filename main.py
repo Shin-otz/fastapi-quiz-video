@@ -553,7 +553,7 @@ async def generate_one(item: QuestionItem):
         "ID": question_audio_id
     }
 
-    make_quiz_video_with_title_top(data_, output_file)
+    #make_quiz_video_with_title_top(data_, output_file)
 
     #create_video(data_, (output_file))
 
