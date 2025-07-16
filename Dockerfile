@@ -32,8 +32,6 @@ RUN ./configure \
     && make -j$(nproc) \
     && make install
 
-# ffmpeg 설치 확인
-RUN ffmpeg -version && ffmpeg -filters | grep drawtext
 
 WORKDIR /app
 
