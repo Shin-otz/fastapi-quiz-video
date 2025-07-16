@@ -507,7 +507,7 @@ def make_quiz_video_with_title_top(data_, output_path):
                 shortest=None,
                 movflags='+faststart'
             )
-            .run(overwrite_output=True)
+            .run(overwrite_output=True, capture_stdout=True, capture_stderr=True)
         )
 
         print(f"✅ 생성 완료: {output_path}")
