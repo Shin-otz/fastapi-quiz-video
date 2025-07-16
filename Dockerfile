@@ -12,9 +12,6 @@ COPY --from=ffmpeg /usr/local /usr/local
 COPY --from=ffmpeg /usr/lib /usr/lib
 COPY --from=ffmpeg /lib /lib
 
-# ffmpeg drawtext 필터 확인 (선택)
-RUN ffmpeg -filters | grep drawtext || (echo "❌ drawtext 없음!" && exit 1)
-
 # Python 의존성 설치
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
