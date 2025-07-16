@@ -9,14 +9,15 @@ payload = {
     "next_bg_url": "https://drive.google.com/file/d/1vjc4FlwhjfiT6Vcb2EE1Jg0FrE3ZcFFR/view?usp=drive_link"
 }
 
-# POST 요청
-res = requests.post(f"{BASE_URL}/generate-mp4_next", json=payload)
+url = f"{BASE_URL}/generate-mp4_next"
 
-# 응답 출력
-print("Status Code:", res.status_code)
-print("Response JSON:", res.json())
+# POST 요청 보내기
+response = requests.post(url, json=payload)
 
-# 생성된 mp4 링크
-if res.status_code == 200:
-    video_url = res.json().get("next_mp4")
-    print("생성된 영상 URL:", video_url)
+# 응답 확인
+if response.status_code == 200:
+    print("Success!")
+    print("Response JSON:", response.json())
+else:
+    print("Failed with status code:", response.status_code)
+    print("Response:", response.text)

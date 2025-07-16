@@ -344,47 +344,33 @@ async def generate_next(item: NextItem):
         "next_bg_image": background_image_file,
         "next_mp4": output_file
     }
-
 def make_next_moviepy_mp4(data_, output_path):
-    try:
-        # 🔥 경로 준비
-        next_mp3_path = os.path.abspath(data_["next_mp3"])
-        bgimage_path = os.path.abspath(data_["next_bg_image"])
-        output_path = os.path.abspath(output_path)
+    next_mp3_path = os.path.abspath(data_["next_mp3"])
+    bgimage_path = os.path.abspath(data_["next_bg_image"])
+    output_path = os.path.abspath(output_path)
 
-        # 🎵 오디오 클립
-        question_a = AudioFileClip(next_mp3_path)
-        # 필요한 다른 오디오가 있다면 이런 식으로 추가:
-        # answer_a = AudioFileClip(...).with_start(...)
-        # beef_a = AudioFileClip(...).with_start(...)
-        # explanation_a = AudioFileClip(...).with_start(...)
-        # 여기서는 단일 오디오만 예시로
-        final_audio = CompositeAudioClip([question_a]).with_fps(44100)
+    # 오디오
+    question_a = AudioFileClip(next_mp3_path)
+    final_audio = CompositeAudioClip([question_a]).with_fps(44100)
 
-        # 🖼️ 배경 이미지 클립
-        base_clip = (
-            ImageClip(bgimage_path)
-            .set_duration(final_audio.duration)   # 오디오 길이에 맞춤
-            .resize((1080, 720))                  # 해상도 조정
-        )
+    # 이미지 (moviepy 2.1.2 기준 with_resize 사용)
 
-        # 🎬 최종 비디오 클립
-        final_clip = base_clip.set_audio(final_audio)
+    base_clip = ImageClip(bgimage_path).with_duration(final_audio.duration)
 
-        # 💾 mp4 출력
-        final_clip.write_videofile(
-            output_path,
-            fps=25,
-            codec='libx264',
-            audio_codec='aac'
-        )
+    # 합성
+    final_clip = base_clip.with_audio(final_audio)
 
-        print(f"✅ 생성 완료 (moviepy): {output_path}")
-        return {"status": "ok", "output": output_path}
+    # 출력
+    final_clip.write_videofile(
+        output_path,
+        fps=25,
+        codec='libx264',
+        audio_codec='aac'
+    )
 
-    except Exception as e:
-        print(f"❌ moviepy 에러 발생: {e}")
-        raise
+    print(f"✅ 생성 완료 (moviepy): {output_path}")
+    return {"status": "ok", "output": output_path}
+
 
 def make_next_mp4(data_, output_path):
     next_mp3_path = data_["next_mp3"]
