@@ -329,6 +329,28 @@ def make_next_mp4(data_, output_path):
 
     try:
         # 이미지 입력 (반복), 프레임레이트 1fps 지정
+        image_input = ffmpeg.input(bgimage_path, loop=1,framerate=25)
+        # 오디오 입력
+        audio_input = ffmpeg.input(next_mp3_path)
+        # 스케일 필터 적용
+        base = image_input.filter('scale', 1080, 720)
+
+        ffmpeg.output(
+            base, audio_input,
+            output_path,
+            vcodec='libx264',
+            acodec='aac',
+            audio_bitrate='192k',
+            pix_fmt='yuv420p',
+            shortest=None,
+            movflags='+faststart'
+        ).run(overwrite_output=True)
+
+        print(f"✅ 생성 완료: {output_path}")
+
+    """
+    try:
+        # 이미지 입력 (반복), 프레임레이트 1fps 지정
         image_input = ffmpeg.input(bgimage_path, loop=1, framerate=1)
         # 스케일 필터 적용
         base = image_input.filter('scale', 1080, 720)
@@ -353,6 +375,7 @@ def make_next_mp4(data_, output_path):
         )
 
         print(f"✅ 생성 완료: {output_path}")
+        """
 
     except ffmpeg.Error as e:
         err_msg = e.stderr.decode() if e.stderr else str(e)
