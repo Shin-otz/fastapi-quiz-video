@@ -40,9 +40,6 @@ RUN apt-get update && apt-get install -y \
 # 빌드된 ffmpeg 복사
 COPY --from=builder /ffmpeg-build/ /usr/local/
 
-# ffmpeg 확인
-RUN ffmpeg -version && ffmpeg -filters | grep drawtext || (echo "❌ drawtext 없음!" && exit 1)
-
 # Python 패키지 설치
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
