@@ -495,7 +495,8 @@ def make_quiz_video_with_title_top(data_, output_path):
             enable=f'gte(t,{question_a.duration + 1 + 5 + answer_a.duration+1})'
         )
 
-        (ffmpeg
+        (
+            ffmpeg
             .output(
                 video,
                 audio_input,
@@ -507,16 +508,20 @@ def make_quiz_video_with_title_top(data_, output_path):
                 shortest=None,
                 movflags='+faststart'
             )
-            .run(overwrite_output=True, capture_stdout=True, capture_stderr=True)
+            .run(
+                overwrite_output=True,
+                capture_stdout=True,
+                capture_stderr=True
+            )
         )
-
         print(f"✅ 생성 완료: {output_path}")
 
-
     except ffmpeg.Error as e:
-        err_msg = e.stderr.decode() if e.stderr else str(e)
-        logger.error(f"❌ ffmpeg 에러 발생:\n{err_msg}")
-        raise HTTPException(status_code=500, detail=f"ffmpeg 에러: {err_msg}")
+        # raw bytes 출력
+        logger.error(f"[STDERR RAW] {e.stderr}")
+        # 디코드 후 출력
+        logger.error(f"[STDERR DECODED]\n{e.stderr.decode(errors='ignore')}")
+        raise HTTPException(status_code=500, detail=f"ffmpeg 에러: {e.stderr.decode(errors='ignore')}")
 
 @app.post("/generate-video")
 async def generate_one(item: QuestionItem):
