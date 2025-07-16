@@ -1,45 +1,60 @@
+# ========== [ 1단계: ffmpeg 빌드 ] ==========
 FROM python:3.10-slim-bullseye AS builder
 
-WORKDIR /tmp
+# 빌드 전용 작업 디렉토리
+WORKDIR /usr/local/src
 
-# 빌드 종속성 설치
-RUN apt-get update && apt-get install -y \
-    autoconf automake build-essential cmake git-core pkg-config \
-    libass-dev libfreetype6-dev libfontconfig1-dev \
-    libvorbis-dev libx264-dev libx265-dev \
-    libopus-dev libvpx-dev yasm nasm wget curl \
+# ffmpeg 빌드에 필요한 패키지 설치
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    autoconf automake build-essential pkg-config yasm nasm wget ca-certificates \
+    libx264-dev libx265-dev libvpx-dev libopus-dev libvorbis-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# ffmpeg 최신 버전 다운로드 (7.1)
-RUN wget https://ffmpeg.org/releases/ffmpeg-7.1.tar.gz && \
-    tar xzf ffmpeg-7.1.tar.gz && \
-    cd ffmpeg-7.1 && \
+# ffmpeg 7.0.2 다운로드 및 빌드
+RUN wget https://ffmpeg.org/releases/ffmpeg-7.0.2.tar.gz && \
+    tar xzf ffmpeg-7.0.2.tar.gz && \
+    cd ffmpeg-7.0.2 && \
     ./configure \
-        --prefix=/ffmpeg-build \
+        --prefix=/usr/local \
         --enable-gpl \
-        --enable-libfreetype \
-        --enable-libfontconfig \
         --enable-libx264 \
         --enable-libx265 \
         --enable-libvorbis \
         --enable-libopus \
         --enable-libvpx \
         --enable-nonfree && \
-    make -j$(nproc) && make install
+    make -j"$(nproc)" && make install
 
-# -------------------------------------------------
+
+# ========== [ 2단계: 런타임 실행 환경 ] ==========
 FROM python:3.10-slim-bullseye AS runtime
 
+# 앱용 작업 디렉토리
 WORKDIR /app
 
-# drawtext용 폰트 설치 (한글 포함)
-RUN apt-get update && apt-get install -y \
-    libfreetype6 libfontconfig1 fonts-nanum fonts-noto-cjk && \
-    rm -rf /var/lib/apt/lists/*
+# ffmpeg 실행에 필요한 런타임 라이브러리 설치
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libx264-163 libx265-199 libvpx7 libopus0 libvorbis0a \
+    && rm -rf /var/lib/apt/lists/*
 
-# 빌드된 ffmpeg 복사
-COPY --from=builder /ffmpeg-build/ /usr/local/
+# 빌드된 ffmpeg 바이너리 복사
+COPY --from=builder /usr/local/ /usr/local/
 
-# Python 패키지 설치
+# 파이썬 의존성 설치
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
+
+# 애플리케이션 소스 복사
+COPY . .
+
+RUN mkdir -p /app/tmp
+COPY tmp/ tmp/
+
+# 포트 노출
+EXPOSE 8080
+
+# Railway PORT 환경변수 대응
+CMD ["sh", "-c", "uvicorn main:app --host 0.0.0.0 --port ${PORT:-8080} --log-level debug"]
+
+EXPOSE 8080
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080", "--log-level", "debug"]
