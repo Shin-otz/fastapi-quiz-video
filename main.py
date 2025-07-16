@@ -13,12 +13,15 @@ import mimetypes
 import os
 import logging
 from mutagen.mp3 import MP3
-from moviepy import *
 from typing import List
 import subprocess
 import shutil
 import time
-
+import traceback
+from moviepy import AudioFileClip, CompositeAudioClip, ImageClip, TextClip, CompositeVideoClip
+import moviepy
+import numpy as np
+from PIL import Image, ImageDraw, ImageFont
 
 # uvicorn 로거 설정
 logger = logging.getLogger("uvicorn")
@@ -391,6 +394,148 @@ def hello():
 #async def general_exception_handler(request, exc):
 #    logger.error(f"예외 발생: {traceback.format_exc()}")
 #    return JSONResponse(status_code=500, content={"message": "Internal server error."})
+def create_text_image(text, font_path, font_size, color, size, align='center'):
+    from PIL import Image, ImageDraw, ImageFont
+
+    img = Image.new("RGBA", size, (0, 0, 0, 0))
+    draw = ImageDraw.Draw(img)
+    font = ImageFont.truetype(font_path, font_size)
+
+    lines = text.split('\n')
+    y_offset = 0
+    for line in lines:
+        # textbbox는 (x0, y0, x1, y1)를 반환
+        bbox = draw.textbbox((0, 0), line, font=font)
+        w = bbox[2] - bbox[0]
+        h = bbox[3] - bbox[1]
+
+        if align == 'center':
+            x = (size[0] - w) // 2
+        elif align == 'left':
+            x = 0
+        else:  # right
+            x = size[0] - w
+
+        draw.text((x, y_offset), line, font=font, fill=color)
+        y_offset += h
+
+    return img
+
+def make_quiz_video_with_title_top_moviepy(data_, output_path):
+    try:
+
+        # 🔥 tmp 폴더의 TTF 폰트 경로
+        font_path = os.path.abspath('tmp/NanumMyeongjo-YetHangul.ttf')
+
+        # 경로들
+        question_audio = os.path.abspath(data_["question_audio"])
+        answer_audio = os.path.abspath(data_["answer_audio"])
+        explanation_audio = os.path.abspath(data_["explanation_audio"])
+        beef_audio = os.path.abspath(data_["beef_audio"])
+        bgimage_path = os.path.abspath(data_["background_image"])
+
+        # 텍스트
+        question_text = data_["question_text"]
+        hint_text = data_["hint_text"]
+        answer_text = data_["answer_text"]
+        explanation_text = data_["explanation"]
+        ID = data_["ID"]
+
+        # 오디오 클립
+        question_a = AudioFileClip(question_audio)
+        answer_a = AudioFileClip(answer_audio).with_start(question_a.duration + 1 + 5)
+        beef_a = AudioFileClip(beef_audio).with_start(question_a.duration + 1)
+        explanation_a = AudioFileClip(explanation_audio).with_start(
+            question_a.duration + 1 + 5 + answer_a.duration + 1
+        )
+        final_audio = CompositeAudioClip([question_a, answer_a, beef_a, explanation_a]).with_fps(44100)
+
+        # 배경 이미지
+        base_clip = ImageClip(bgimage_path).with_duration(final_audio.duration)
+
+        # ===== helper: text 이미지 생성 =====
+        def create_text_image(text, font_path, font_size, color, size, align='left'):
+            img = Image.new("RGBA", size, (0, 0, 0, 0))
+            draw = ImageDraw.Draw(img)
+            font = ImageFont.truetype(font_path, font_size)
+
+            lines = text.split('\n')
+            y_offset = 0
+            for line in lines:
+                bbox = draw.textbbox((0, 0), line, font=font)
+                w = bbox[2] - bbox[0]
+                h = bbox[3] - bbox[1]
+
+                if align == 'center':
+                    x = (size[0] - w) // 2
+                elif align == 'left':
+                    x = 0
+                else:  # right
+                    x = size[0] - w
+
+                draw.text((x, y_offset), line, font=font, fill=color)
+                y_offset += h
+            return img
+        # ================================
+
+        text_clips = []
+
+        # 제목
+        img_title = create_text_image("한국사 퀴즈", font_path, 38, "black", (1080, 100),'center')
+        title_clip = ImageClip(np.array(img_title)).with_position(("center", 16)).with_duration(final_audio.duration)
+        text_clips.append(title_clip)
+
+        # 문제
+        img_question = create_text_image(wrap_text(question_text), font_path, 32, "black", (800, 200))
+        question_clip = ImageClip(np.array(img_question)).with_position((200, 120)).with_duration(final_audio.duration)
+        text_clips.append(question_clip)
+
+        # 힌트
+        img_hint = create_text_image(f"힌트: {hint_text}", font_path, 30, "blue", (800, 50),'center')
+        hint_clip = ImageClip(np.array(img_hint)).with_position(("center", 250)).with_start(question_a.duration + 4).with_duration(2)
+        text_clips.append(hint_clip)
+
+        # 카운트다운
+        for i in range(5, 0, -1):
+            img_count = create_text_image(str(i), font_path, 80, "red", (400, 150),'center')
+            countdown_clip = ImageClip(np.array(img_count)).with_position("center").with_start(
+                question_a.duration + 1 + (5 - i)
+            ).with_duration(1)
+            text_clips.append(countdown_clip)
+
+        # 정답
+        img_answer = create_text_image(f"정답: {answer_text}", font_path, 30, "black", (800, 50),'center')
+        answer_clip = ImageClip(np.array(img_answer)).with_position(("center", 250)).with_start(question_a.duration + 1 + 5).with_duration(final_audio.duration-(question_a.duration + 1 + 5))
+        text_clips.append(answer_clip)
+
+        # 해설
+        img_expl = create_text_image(wrap_text(explanation_text), font_path, 28, "black", (1000, 300))
+        explanation_clip = ImageClip(np.array(img_expl)).with_position((150, 320)).with_start(
+            question_a.duration + 1 + 5 + answer_a.duration + 1
+        ).with_duration(explanation_a.duration)
+        text_clips.append(explanation_clip)
+
+        # 합성
+        final_clip = CompositeVideoClip([base_clip] + text_clips).with_audio(final_audio)
+
+        output_path = os.path.abspath(output_path)
+        try:
+            final_clip.write_videofile(output_path, fps=25, codec='libx264', audio_codec='aac')
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"🎥 moviepy/ffmpeg 에러: {str(e)}")
+
+        print(f"✅ 생성 완료 (moviepy): {output_path}")
+        return {"status": "ok", "output": output_path}
+
+    except Exception as e:
+        logger.error("❌ [MoviePy/FFmpeg] 에러 타입: %s", type(e))
+        logger.error("❌ [MoviePy/FFmpeg] 에러 메시지: %s", str(e))
+        logger.error("❌ [MoviePy/FFmpeg] 전체 스택:\n%s", traceback.format_exc())
+        raise HTTPException(status_code=500, detail=f"🎥 moviepy/ffmpeg 에러: {str(e)}")
+
+    logger.info(f"✅ 생성 완료 (moviepy): {output_path}")
+    return {"status": "ok", "output": output_path}
+
 
 def make_quiz_video_with_title_top(data_, output_path):
     # 🔥 모든 경로를 절대 경로로 변환
@@ -582,7 +727,7 @@ async def generate_one(item: QuestionItem):
         "ID": question_audio_id
     }
 
-    result = make_quiz_video_with_title_top(data_, output_file)
+    result = make_quiz_video_with_title_top_moviepy(data_, output_file)
     if isinstance(result, dict) and result.get("status") == "error":
         return result  # ffmpeg 에러 내용을 그대로 클라이언트에 반환
     #create_video(data_, (output_file))
@@ -671,6 +816,7 @@ def check_video(filename: str):
 @app.on_event("startup")
 async def on_startup():
     check_ffmpeg_installed()
+    print(moviepy.__version__)
     logger.info("✅ FFmpeg 설치 확인됨, 서버 시작!")
     check_ffmpeg_drawtext()
 

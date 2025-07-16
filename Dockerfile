@@ -2,19 +2,19 @@ FROM python:3.10-slim-bullseye
 
 WORKDIR /app
 
-# 빌드에 필요한 패키지 설치
+# 필요한 패키지 설치
 RUN apt-get update && apt-get install -y \
     autoconf automake build-essential cmake git-core pkg-config \
     libass-dev libfreetype6-dev libfontconfig1-dev \
     libvorbis-dev libx264-dev libx265-dev \
     libopus-dev libvpx-dev yasm nasm wget curl \
     libfreetype6 libfontconfig1 \
+    python3-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # ffmpeg 6.1 소스 빌드
-RUN git clone https://git.ffmpeg.org/ffmpeg.git ffmpeg && \
+RUN git clone --depth 1 --branch n6.1 https://git.ffmpeg.org/ffmpeg.git ffmpeg && \
     cd ffmpeg && \
-    git checkout n6.1 && \
     ./configure \
         --prefix=/usr/local \
         --enable-gpl \
@@ -29,15 +29,15 @@ RUN git clone https://git.ffmpeg.org/ffmpeg.git ffmpeg && \
     make -j$(nproc) && make install && \
     cd .. && rm -rf ffmpeg
 
-# ffmpeg 설치 확인
-RUN ffmpeg -version && ffmpeg -filters | grep drawtext
+# ffmpeg 설치 및 drawtext 필터 확인
+RUN ffmpeg -version && ffmpeg -filters | grep drawtext || (echo "❌ drawtext 필터 없음!" && exit 1)
 
 # Python 패키지 설치
-COPY requirements.txt .
+COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
 # 소스 복사
-COPY . .
+COPY . ./
 RUN mkdir -p /app/tmp
 COPY tmp/ tmp/
 
