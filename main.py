@@ -326,19 +326,18 @@ async def generate_next(item: NextItem):
 def make_next_mp4(data_, output_path):
     next_mp3_path = data_["next_mp3"]
     bgimage_path = data_["next_bg_image"]
-
+    duration = MP3(next_mp3_path).info.length
     try:
         # 이미지 입력 (반복), 프레임레이트 1fps 지정
-        image_input = ffmpeg.input(bgimage_path, loop=1,framerate=25)
+        image_input = ffmpeg.input(bgimage_path, loop=1,framerate=25,t=duration)
         # 오디오 입력
-        audio_input = ffmpeg.input(next_mp3_path)
+        audio_input = ffmpeg.input(next_mp3_path).with_fps(44100)
         # 스케일 필터 적용
         base = image_input.filter('scale', 1080, 720)
 
         ffmpeg.output(
             base, audio_input,
             output_path,
-            ar='48000',
             vcodec='libx264',
             acodec='aac',
             audio_bitrate='192k',
@@ -428,9 +427,10 @@ def make_quiz_video_with_title_top(data_, output_path):
     final_audio = CompositeAudioClip([question_a, answer_a, beef_a, explanation_a]).with_fps(44100)
     output_audio_path = os.path.join("tmp", f"final_{ID}.mp3")
     final_audio.write_audiofile(output_audio_path)
+    duration = MP3(output_audio_path).info.length
 
     try:
-        image_input = ffmpeg.input(bgimage_path, loop=1)
+        image_input = ffmpeg.input(bgimage_path, loop=1,framerate=25,t=duration)
         audio_input = ffmpeg.input(output_audio_path)
         base = image_input.filter('scale', 1080, 720)
 
@@ -525,7 +525,6 @@ def make_quiz_video_with_title_top(data_, output_path):
         ffmpeg.output(
             video, audio_input,
             output_path,
-            ar='48000',
             vcodec='libx264',
             acodec='aac',
             audio_bitrate='192k',
