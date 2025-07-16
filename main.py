@@ -513,7 +513,10 @@ def make_quiz_video_with_title_top(data_, output_path):
 
     except ffmpeg.Error as e:
         err_msg = e.stderr.decode() if e.stderr else str(e)
-        print(f"❌ ffmpeg 에러 발생:\n{err_msg}")
+        logger.debug(f"❌ ffmpeg 에러 발생:\n{err_msg}")
+        return {
+        "status": f"❌ ffmpeg 에러 발생:\n{err_msg}"
+        }
         raise RuntimeError(f"ffmpeg error: {err_msg}")
 
 
