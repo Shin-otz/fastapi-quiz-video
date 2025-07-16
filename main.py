@@ -328,7 +328,7 @@ def make_next_mp4(data_, output_path):
 
     try:
         # 이미지 입력 (반복), 프레임레이트 1fps 지정
-        image_input = ffmpeg.input(bgimage_path, loop=1,framerate=25)
+        image_input = ffmpeg.input(bgimage_path, loop=1)
 
         question_a = AudioFileClip(next_mp3_path)
         final_audio = CompositeAudioClip([question_a]).with_fps(44100)
@@ -497,16 +497,17 @@ def make_quiz_video_with_title_top(data_, output_path):
             enable=f'gte(t,{question_a.duration + 1 + 5 + answer_a.duration+1})'
         )
 
-        ffmpeg.output(
+        (ffmpeg.output(
             video, audio_input,
             output_path,
-            vcodec='libx264',
+            vcodec='libx264',  # ✅ CPU 인코딩
             acodec='aac',
             audio_bitrate='192k',
             pix_fmt='yuv420p',
             shortest=None,
             movflags='+faststart'
-        ).run(overwrite_output=True)
+        )
+        .run(overwrite_output=True))
 
         print(f"✅ 생성 완료: {output_path}")
 
