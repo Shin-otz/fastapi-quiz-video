@@ -34,6 +34,27 @@ Path("tmp").mkdir(parents=True, exist_ok=True)
 app = FastAPI()
 app.mount("/static", StaticFiles(directory="tmp"), name="static")
 
+
+def check_ffmpeg_drawtext():
+    try:
+        # ffmpeg 필터 목록에서 drawtext가 있는지 확인
+        result = subprocess.run(
+            ["ffmpeg", "-filters"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True
+        )
+        filters_output = result.stdout
+
+        if "drawtext" in filters_output:
+            logger.info("✅ ffmpeg drawtext 필터 지원 확인됨.")
+        else:
+            logger.error("❌ ffmpeg drawtext 필터가 없습니다! Dockerfile을 수정하거나 빌드를 확인하세요.")
+    except FileNotFoundError:
+        logger.error("❌ ffmpeg 명령을 찾을 수 없습니다. ffmpeg가 설치되어 있는지 확인하세요.")
+    except Exception as e:
+        logger.exception(f"❌ ffmpeg 필터 확인 중 오류 발생: {e}")
+
 def wrap_text(text, max_chars=30):
     """
     입력 텍스트가 너무 길면 강제로 줄바꿈(\n) 추가
@@ -651,7 +672,7 @@ def check_video(filename: str):
 async def on_startup():
     check_ffmpeg_installed()
     logger.info("✅ FFmpeg 설치 확인됨, 서버 시작!")
-
+    check_ffmpeg_drawtext()
 
 """
 if __name__ == "__main__":
