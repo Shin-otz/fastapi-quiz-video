@@ -2,18 +2,32 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
-# ffmpeg 7.0.0 설치 (고정)
-RUN apt-get update && apt-get install -y wget xz-utils && \
-    wget https://johnvansickle.com/ffmpeg/releases/ffmpeg-7.0-amd64-static.tar.xz && \
-    tar -xf ffmpeg-7.0-amd64-static.tar.xz && \
-    mv ffmpeg-7.0-amd64-static/ffmpeg /usr/local/bin/ffmpeg && \
-    mv ffmpeg-7.0-amd64-static/ffprobe /usr/local/bin/ffprobe && \
-    chmod +x /usr/local/bin/ffmpeg /usr/local/bin/ffprobe && \
-    ffmpeg -version && \
-    rm -rf ffmpeg-7.0-amd64-static* && \
-    apt-get clean && rm -rf /var/lib/apt/lists/*
+# 빌드에 필요한 도구 설치
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    autoconf automake build-essential cmake git pkg-config yasm nasm \
+    libx264-dev libx265-dev libvpx-dev libopus-dev libfdk-aac-dev libass-dev \
+    && rm -rf /var/lib/apt/lists/*
 
-# Python 의존성 설치
+# ffmpeg 최신 소스 빌드 (2025-07-12 기준 최신 master)
+RUN git clone https://git.ffmpeg.org/ffmpeg.git ffmpeg-src && \
+    cd ffmpeg-src && \
+    git checkout master && \
+    ./configure \
+        --enable-gpl \
+        --enable-libx264 \
+        --enable-libx265 \
+        --enable-libvpx \
+        --enable-libfdk-aac \
+        --enable-libopus \
+        --enable-libass \
+        --enable-nonfree && \
+    make -j$(nproc) && make install && \
+    cd .. && rm -rf ffmpeg-src
+
+# ffmpeg 설치 확인
+RUN ffmpeg -version
+
+# Python 의존성
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
