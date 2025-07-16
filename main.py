@@ -344,8 +344,6 @@ async def generate_next(item: NextItem):
         "next_bg_image": background_image_file,
         "next_mp4": output_file
     }
-from moviepy.editor import ImageClip, AudioFileClip, CompositeAudioClip
-import os
 
 def make_next_moviepy_mp4(data_, output_path):
     try:
