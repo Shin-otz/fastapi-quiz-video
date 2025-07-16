@@ -1,8 +1,5 @@
-# ✅ 1단계: ffmpeg가 이미 설치된 ubuntu2204 베이스
+FROM python:3.12-bullseye as python
 FROM jrottenberg/ffmpeg:7.0-ubuntu2204 as ffmpeg
-
-# ✅ 2단계: python 3.12 + ffmpeg 바이너리 복사
-FROM python:3.12-slim-bullseye
 
 # 작업 디렉토리
 WORKDIR /app
