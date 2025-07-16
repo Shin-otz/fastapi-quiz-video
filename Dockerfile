@@ -6,13 +6,13 @@ WORKDIR /app
 
 # 필수 패키지 설치 및 ffmpeg 7.1.1 설치
 RUN apt-get update && apt-get install -y wget xz-utils && \
-    wget https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz && \
-    tar -xf ffmpeg-release-amd64-static.tar.xz && \
-    mv ffmpeg-*-amd64-static/ffmpeg /usr/local/bin/ffmpeg && \
-    mv ffmpeg-*-amd64-static/ffprobe /usr/local/bin/ffprobe && \
+    wget https://johnvansickle.com/ffmpeg/releases/ffmpeg-7.1.1-amd64-static.tar.xz && \
+    tar -xf ffmpeg-7.1.1-amd64-static.tar.xz && \
+    mv ffmpeg-7.1.1-amd64-static/ffmpeg /usr/local/bin/ffmpeg && \
+    mv ffmpeg-7.1.1-amd64-static/ffprobe /usr/local/bin/ffprobe && \
     chmod +x /usr/local/bin/ffmpeg /usr/local/bin/ffprobe && \
     ffmpeg -version && \
-    rm -rf ffmpeg-*-amd64-static* && \
+    rm -rf ffmpeg-7.1.1-amd64-static* && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Python 의존성 설치
