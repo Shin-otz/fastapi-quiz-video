@@ -343,7 +343,6 @@ def make_next_mp4(data_, output_path):
             acodec='aac',
             audio_bitrate='192k',
             pix_fmt='yuv420p',
-            shortest=None,
             movflags='+faststart'
         ).run(overwrite_output=True)
 
@@ -522,6 +521,7 @@ def make_quiz_video_with_title_top(data_, output_path):
             enable=f'gte(t,{question_a.duration + 1 + 5 + answer_a.duration+1})'
         )
 
+        # 최종 출력
         ffmpeg.output(
             video, audio_input,
             output_path,
@@ -530,7 +530,6 @@ def make_quiz_video_with_title_top(data_, output_path):
             acodec='aac',
             audio_bitrate='192k',
             pix_fmt='yuv420p',
-            shortest=None,
             movflags='+faststart'
         ).run(overwrite_output=True)
 
