@@ -8,11 +8,13 @@ RUN apt-get update && \
     ffmpeg -version && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
-CMD ffmpeg -version
+
 # 앱 폴더 설정
 WORKDIR /app
 COPY . .
 COPY tmp/ tmp/
+CMD ffmpeg -version
+
 
 # Python 의존성 설치
 RUN pip install --no-cache-dir -r requirements.txt
