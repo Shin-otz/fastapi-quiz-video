@@ -28,7 +28,7 @@ logger.setLevel(logging.DEBUG)
 app = FastAPI()
 
 logger.debug("HAHa ...")
-
+logger.debug(subprocess.check_output(["ffmpeg","-version"]).decode())
 # tmp 폴더 생성
 Path("tmp").mkdir(parents=True, exist_ok=True)
 
