@@ -406,7 +406,7 @@ def make_quiz_video_with_title_top(data_, output_path):
     final_audio.write_audiofile(output_audio_path)
 
     try:
-        image_input = ffmpeg.input(bgimage_path, loop=1)
+        image_input = ffmpeg.input(bgimage_path, loop=1,framerate=25)
         audio_input = ffmpeg.input(output_audio_path)
         base = image_input.filter('scale', 1080, 720)
 
@@ -553,7 +553,7 @@ async def generate_one(item: QuestionItem):
         "ID": question_audio_id
     }
 
-    #make_quiz_video_with_title_top(data_, output_file)
+    make_quiz_video_with_title_top(data_, output_file)
 
     #create_video(data_, (output_file))
 
