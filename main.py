@@ -348,6 +348,12 @@ def make_next_mp4(data_, output_path):
 
         print(f"✅ 생성 완료: {output_path}")
 
+    except ffmpeg.Error as e:
+        err_msg = e.stderr.decode() if e.stderr else str(e)
+        print(f"❌ ffmpeg 에러 발생:\n{err_msg}")
+        raise RuntimeError(f"ffmpeg error: {err_msg}")
+
+
     """
     try:
         # 이미지 입력 (반복), 프레임레이트 1fps 지정
@@ -375,12 +381,7 @@ def make_next_mp4(data_, output_path):
         )
 
         print(f"✅ 생성 완료: {output_path}")
-        """
-
-    except ffmpeg.Error as e:
-        err_msg = e.stderr.decode() if e.stderr else str(e)
-        print(f"❌ ffmpeg 에러 발생:\n{err_msg}")
-        raise RuntimeError(f"ffmpeg error: {err_msg}")
+    """
 
 @app.get("/")
 def hello():
