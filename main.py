@@ -14,8 +14,6 @@ import os
 import logging
 from mutagen.mp3 import MP3
 from moviepy import *
-from utils.text_highlight import make_highlighted_text
-from utils.fonts import get_font
 from typing import List
 import subprocess
 import shutil
@@ -371,15 +369,19 @@ def hello():
 #async def general_exception_handler(request, exc):
 #    logger.error(f"예외 발생: {traceback.format_exc()}")
 #    return JSONResponse(status_code=500, content={"message": "Internal server error."})
-def make_quiz_video_with_title_top(data_, output_path):
-    font = r'tmp/NanumMyeongjo-YetHangul.ttf'
 
-    question_audio = data_["question_audio"]
-    answer_audio = data_["answer_audio"]
-    explanation_audio = data_["explanation_audio"]
-    beef_audio = data_["beef_audio"]
-    bgimage_path = data_["background_image"]
-    image_path = data_["image_"]
+def make_quiz_video_with_title_top(data_, output_path):
+    # 🔥 모든 경로를 절대 경로로 변환
+    font = os.path.abspath('tmp/NanumMyeongjo-YetHangul.ttf')
+
+    question_audio = os.path.abspath(data_["question_audio"])
+    answer_audio = os.path.abspath(data_["answer_audio"])
+    explanation_audio = os.path.abspath(data_["explanation_audio"])
+    beef_audio = os.path.abspath(data_["beef_audio"])
+    bgimage_path = os.path.abspath(data_["background_image"])
+    image_path = os.path.abspath(data_["image_"])
+
+    output_path = os.path.abspath(output_path)
 
     question_text = data_["question_text"]
     hint_text = data_["hint_text"]
@@ -388,7 +390,7 @@ def make_quiz_video_with_title_top(data_, output_path):
     key_term = data_["key_term"]
     ID = data_["ID"]
 
-    # 오디오 길이 정보 (안 쓰이므로 생략 가능)
+    # 오디오 길이 정보
     q_length = MP3(question_audio).info.length
     a_length = MP3(answer_audio).info.length
     e_length = MP3(explanation_audio).info.length
@@ -402,15 +404,15 @@ def make_quiz_video_with_title_top(data_, output_path):
     )
 
     final_audio = CompositeAudioClip([question_a, answer_a, beef_a, explanation_a]).with_fps(44100)
-    output_audio_path = os.path.join("tmp", f"final_{ID}.mp3")
+    output_audio_path = os.path.abspath(os.path.join("tmp", f"final_{ID}.mp3"))
     final_audio.write_audiofile(output_audio_path)
 
     try:
-        image_input = ffmpeg.input(bgimage_path, loop=1,framerate=25)
+        image_input = ffmpeg.input(bgimage_path, loop=1, framerate=25)
         audio_input = ffmpeg.input(output_audio_path)
         base = image_input.filter('scale', 1080, 720)
 
-        # 제목
+        # drawtext 추가
         video = base.drawtext(
             text='한국사 퀴즈',
             fontfile=font,
@@ -424,7 +426,6 @@ def make_quiz_video_with_title_top(data_, output_path):
             enable='gte(t,0)'
         )
 
-        # 문제 텍스트
         video = video.drawtext(
             text=wrap_text(question_text),
             fontfile=font,
@@ -438,7 +439,6 @@ def make_quiz_video_with_title_top(data_, output_path):
             enable='gte(t,0)'
         )
 
-        # 힌트
         video = video.drawtext(
             text=f"힌트: {hint_text}",
             fontfile=font,
@@ -452,7 +452,6 @@ def make_quiz_video_with_title_top(data_, output_path):
             enable=f'between(t,{question_a.duration+4},{question_a.duration+1+5})'
         )
 
-        # 카운트다운
         for i in range(5, 0, -1):
             start = question_a.duration + 1 + (5 - i)
             end = start + 1
@@ -469,7 +468,6 @@ def make_quiz_video_with_title_top(data_, output_path):
                 enable=f'between(t,{start},{end})'
             )
 
-        # 정답
         video = video.drawtext(
             text=f"정답: {answer_text}",
             fontfile=font,
@@ -483,7 +481,6 @@ def make_quiz_video_with_title_top(data_, output_path):
             enable=f'gte(t,{question_a.duration + 1 + 5})'
         )
 
-        # 해설
         video = video.drawtext(
             text=wrap_text(explanation_text),
             fontfile=font,
@@ -497,17 +494,20 @@ def make_quiz_video_with_title_top(data_, output_path):
             enable=f'gte(t,{question_a.duration + 1 + 5 + answer_a.duration+1})'
         )
 
-        (ffmpeg.output(
-            video, audio_input,
-            output_path,
-            vcodec='libx264',  # ✅ CPU 인코딩
-            acodec='aac',
-            audio_bitrate='192k',
-            pix_fmt='yuv420p',
-            shortest=None,
-            movflags='+faststart'
+        (ffmpeg
+            .output(
+                video,
+                audio_input,
+                output_path,
+                vcodec='libx264',
+                acodec='aac',
+                audio_bitrate='192k',
+                pix_fmt='yuv420p',
+                shortest=None,
+                movflags='+faststart'
+            )
+            .run(overwrite_output=True)
         )
-        .run(overwrite_output=True))
 
         print(f"✅ 생성 완료: {output_path}")
 
@@ -515,6 +515,7 @@ def make_quiz_video_with_title_top(data_, output_path):
         err_msg = e.stderr.decode() if e.stderr else str(e)
         print(f"❌ ffmpeg 에러 발생:\n{err_msg}")
         raise RuntimeError(f"ffmpeg error: {err_msg}")
+
 
 @app.post("/generate-video")
 async def generate_one(item: QuestionItem):
