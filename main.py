@@ -322,7 +322,6 @@ async def generate_next(item: NextItem):
         "next_mp4": output_file
     }
 
-
 def make_next_mp4(data_, output_path):
     next_mp3_path = data_["next_mp3"]
     bgimage_path = data_["next_bg_image"]
@@ -360,7 +359,6 @@ def make_next_mp4(data_, output_path):
         err_msg = e.stderr.decode() if e.stderr else str(e)
         print(f"❌ ffmpeg 에러 발생:\n{err_msg}")
         raise RuntimeError(f"ffmpeg error: {err_msg}")
-
 
 @app.get("/")
 def hello():
@@ -402,15 +400,13 @@ def make_quiz_video_with_title_top(data_, output_path):
     explanation_a = AudioFileClip(explanation_audio).with_start(
         question_a.duration + 1 + 5 + answer_a.duration + 1
     )
-    total_duration =question_a.duration + 1 + 5 + answer_a.duration + 1 + explanation_a.duration + 1
 
     final_audio = CompositeAudioClip([question_a, answer_a, beef_a, explanation_a]).with_fps(44100)
     output_audio_path = os.path.join("tmp", f"final_{ID}.mp3")
     final_audio.write_audiofile(output_audio_path)
-    duration = MP3(output_audio_path).info.length
 
     try:
-        image_input = ffmpeg.input(bgimage_path, loop=1,framerate=25,t=duration)
+        image_input = ffmpeg.input(bgimage_path, loop=1)
         audio_input = ffmpeg.input(output_audio_path)
         base = image_input.filter('scale', 1080, 720)
 
@@ -501,7 +497,6 @@ def make_quiz_video_with_title_top(data_, output_path):
             enable=f'gte(t,{question_a.duration + 1 + 5 + answer_a.duration+1})'
         )
 
-        # 최종 출력
         ffmpeg.output(
             video, audio_input,
             output_path,
@@ -509,6 +504,7 @@ def make_quiz_video_with_title_top(data_, output_path):
             acodec='aac',
             audio_bitrate='192k',
             pix_fmt='yuv420p',
+            shortest=None,
             movflags='+faststart'
         ).run(overwrite_output=True)
 
