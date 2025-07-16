@@ -28,7 +28,7 @@ logger.setLevel(logging.DEBUG)
 app = FastAPI()
 
 logger.debug("HAHa ...")
-
+logger.debug(subprocess.check_output(["ffmpeg","-version"]).decode())
 # tmp 폴더 생성
 Path("tmp").mkdir(parents=True, exist_ok=True)
 
@@ -132,64 +132,6 @@ def download_file_tmp2(url: str, filename: str) -> str:
             f.write(r.content)
     return str(path)
 
-def create_video(data_, output_path: str):
-
-    question_audio = data_["question_audio"]
-    answer_audio = data_["answer_audio"]
-    explanation_audio = data_["explanation_audio"]
-    beef_audio = data_["beef_audio"]
-    bgimage_path = data_["background_image"]
-
-    image_input = ffmpeg.input(bgimage_path, loop=1, framerate=2)
-    audio_input = ffmpeg.input(question_audio)
-    # 2. 출력 설정 및 실행
-    (
-        ffmpeg
-        .output(
-            image_input,
-            audio_input,
-            output_path,
-            vcodec='libx264',
-            acodec='aac',
-            audio_bitrate='192k',
-            pix_fmt='yuv420p',
-            shortest=None,  # shortest=True도 가능
-            movflags='+faststart'
-        )
-        .run(overwrite_output=True)
-    )
-
-def create_video2(image_path: str, audio_path: str, output_path: str):
-    try:
-        logger.info(f"🎧 오디오 경로: {audio_path}")
-        logger.info(f"🖼️ 이미지 경로: {image_path}")
-
-        # 오디오 길이 확인
-        probe = ffmpeg.probe(audio_path)
-        logger.info(f"ffprobe 결과: {probe}")
-        duration = float(probe["format"]["duration"])
-
-        (
-            ffmpeg
-            .input(image_path, loop=1, t=duration)
-            .input(audio_path)
-            .output(output_path, vcodec='libx264', acodec='aac', pix_fmt='yuv420p', shortest=None)
-            .overwrite_output()
-            .run(capture_stdout=True, capture_stderr=True)
-        )
-
-        logger.info(f"✅ 비디오 생성 완료: {output_path}")
-
-    except ffmpeg.Error as e:
-        logger.error("❌ FFmpeg 처리 오류 발생:")
-        logger.error(e.stderr.decode())
-        raise HTTPException(status_code=500, detail="FFmpeg 실행 오류")
-
-    except Exception as ex:
-        logger.error("❌ 일반 예외 발생:")
-        logger.error(str(ex))
-        raise HTTPException(status_code=500, detail=f"비디오 생성 중 알 수 없는 오류 발생{image_path} ::{audio_path} :: {output_path}")
-
 @app.get("/check-list")
 def check_list(filename: str):
     file_path = Path(f"tmp/{filename}_list.txt")
@@ -235,18 +177,6 @@ def download_mp4(url: str, filename: str) -> str:
     return str(path)
 
 
-def create_freeze_frame(input_path: str, freeze_path: str):
-    # freeze_path: 'tmp/video0_freeze.mp4' 같은 경로
-    subprocess.run([
-        "ffmpeg",
-        "-sseof", "-1",  # 영상 끝에서 1초 전
-        "-i", input_path,
-        "-vf", "tpad=stop_mode=clone:stop_duration=1",  # 마지막 프레임 복제 → 1초 유지
-        "-an",  # 오디오 제거
-        "-y",
-        freeze_path
-    ], check=True)
-
 def merge_videos_ffmpeg(file_paths: list[str], output_name: str) -> str:
     TMP_DIR = Path("tmp")
     TMP_DIR.mkdir(exist_ok=True)
@@ -270,7 +200,7 @@ def merge_videos_ffmpeg(file_paths: list[str], output_name: str) -> str:
         "-c", "copy",
         str(output_path.resolve().as_posix())
     ]
-    """
+    
     command = [
         "ffmpeg",
         "-f", "concat",
@@ -282,6 +212,18 @@ def merge_videos_ffmpeg(file_paths: list[str], output_name: str) -> str:
         "-strict", "experimental",
         str(output_path)
     ]
+    """
+    command = [
+        "ffmpeg",
+        "-f", "concat",
+        "-safe", "0",
+        "-y",
+        "-i", str(list_path),
+        "-c", "copy",
+        "-c:a", "aac",
+        str(output_path.resolve().as_posix())
+    ]
+
     subprocess.run(command, check=True)
     return str(output_path)
 
@@ -341,11 +283,88 @@ async def merge_videos(payload: List[VideoMergeRequest]):
 
     return {"result": results}
 
+
+class NextItem(BaseModel):
+    next_text_mp3_url: str
+    next_bg_url: str
+
+
+@app.post("/generate-mp4_next")
+async def generate_next(item: NextItem):
+    # 🔽 각 URL에 대해 고유 ID 기반 파일명 생성
+    next_audio_id = extract_drive_id(item.next_text_mp3_url)
+    background_id = extract_drive_id(item.next_bg_url)
+
+    # 🔽 파일 다운로드
+    next_mp3_file = download_file(item.next_text_mp3_url, f"next_mp3_{next_audio_id}.mp3")
+    background_image_file = download_file(item.next_bg_url, f"next_bg_{background_id}.png")
+
+    # 🔽 출력 파일명
+    output_filename = f"next_{next_audio_id}.mp4"
+    output_file = f"tmp/{output_filename}"
+
+    data_ = {
+        "next_mp3": next_mp3_file,
+        "next_bg_image": background_image_file,
+    }
+
+    make_next_mp4(data_, output_file)
+
+    # create_video(data_, (output_file))
+
+    BASE_URL = "https://primary-production-8af2.up.railway.app"
+    public_video_url = f"{BASE_URL}/static/{output_filename}"
+
+    return {
+        "status": "ok",
+        "next_mp3": next_mp3_file,
+        "next_bg_image": background_image_file,
+        "next_mp4": output_file
+    }
+
+def make_next_mp4(data_, output_path):
+    next_mp3_path = data_["next_mp3"]
+    bgimage_path = data_["next_bg_image"]
+
+    try:
+        # 이미지 입력 (반복), 프레임레이트 1fps 지정
+        image_input = ffmpeg.input(bgimage_path, loop=1,framerate=25)
+
+        question_a = AudioFileClip(next_mp3_path)
+        final_audio = CompositeAudioClip([question_a]).with_fps(44100)
+        output_audio_path = os.path.join("tmp", f"next_final.mp3")
+        final_audio.write_audiofile(output_audio_path)
+        # 오디오 입력
+        audio_input = ffmpeg.input(output_audio_path)
+
+
+        # 스케일 필터 적용
+        base = image_input.filter('scale', 1080, 720)
+
+        ffmpeg.output(
+            base, audio_input,
+            output_path,
+
+            vcodec='libx264',
+            acodec='aac',
+            audio_bitrate='192k',
+            pix_fmt='yuv420p',
+            shortest=None,
+            movflags='+faststart'
+        ).run(overwrite_output=True)
+
+        print(f"✅ 생성 완료: {output_path}")
+
+    except ffmpeg.Error as e:
+        err_msg = e.stderr.decode() if e.stderr else str(e)
+        print(f"❌ ffmpeg 에러 발생:\n{err_msg}")
+        raise RuntimeError(f"ffmpeg error: {err_msg}")
+
 @app.get("/")
 def hello():
     logger.info("👋 INFO 로그 작동!")
     logger.debug("🐛 DEBUG 로그 작동!")
-    file = Path(audio_file).exists()
+    file = Path(-audio_file).exists()
     return {"message": "hello"}
 
 #@app.exception_handler(Exception)
@@ -659,13 +678,13 @@ if __name__ == "__main__":
 if __name__ == "__main__":
     logger.info("Starting ...")
     # 퀴즈 영상 병합 테스트용 Google Drive URL 목록
+    """
     urls = [
-        "https://drive.google.com/file/d/1vFthtAgN6PQUfqs-3eBz76V6EcCTWwBV/view?usp=drive_link",
-        "https://drive.google.com/file/d/1R_u9XfRxxuJK6C7HJzPN5vuyhzi8QhIE/view?usp=drive_link",
-        "https://drive.google.com/file/d/1EzkJBF1FAEB7pAhDPQqzmbeCnClhllQc/view?usp=drive_link",
-        "https://drive.google.com/file/d/1D_qVeCUJ7KMNfStYOMng6lmlhrG_UBbP/view?usp=drive_link",
-        "https://drive.google.com/file/d/1DByZb4w_V8_Y8uniayUyzIgDG7EioRrU/view?usp=drive_link",
-        "https://drive.google.com/file/d/1-jzI67Tf458ud6d8BmX-R4VePEEYkboV/view?usp=drive_link"
+        "https://drive.google.com/file/d/1HqCiVP0_zLEQjWfqVY7gBJZgJQfHuh6C/view?usp=drive_link",
+        "https://drive.google.com/file/d/1YqErlJEnU-2c6532tIRQR_VrIzoacxJj/view?usp=drive_link",
+        "https://drive.google.com/file/d/1nV5qi9XOa7R7UnCEyF3RLySPV-qwGR1G/view?usp=drive_link",
+        "https://drive.google.com/file/d/1pjPGZ6DbNODsmV7plflqGrs_dm8x3rvj/view?usp=drive_link",
+        "https://drive.google.com/file/d/1vP_W6K1t4swnaAeYmMfT9zZqjScSVMSh/view?usp=drive_link"
     ]
 
 
@@ -685,6 +704,7 @@ if __name__ == "__main__":
         print("✅ 병합 완료:", merged_path)
     except Exception as e:
         print("❌ 병합 실패:", e)
-
+    """
     # FastAPI 실행
     uvicorn.run("main:app", host="0.0.0.0", port=8080, log_level="info")
+
