@@ -9,9 +9,6 @@ WORKDIR /app
 # ffmpeg 복사 (멀티 스테이지)
 COPY --from=ffmpeg / /
 
-# ffmpeg 필터 확인 (빌드시 로그 출력용)
-RUN ffmpeg -filters | grep drawtext
-
 # Python requirements 설치
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
