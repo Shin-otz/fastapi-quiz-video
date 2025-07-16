@@ -338,6 +338,7 @@ def make_next_mp4(data_, output_path):
         ffmpeg.output(
             base, audio_input,
             output_path,
+            ar='48000',
             vcodec='libx264',
             acodec='aac',
             audio_bitrate='192k',
@@ -524,6 +525,7 @@ def make_quiz_video_with_title_top(data_, output_path):
         ffmpeg.output(
             video, audio_input,
             output_path,
+            ar='48000',
             vcodec='libx264',
             acodec='aac',
             audio_bitrate='192k',
