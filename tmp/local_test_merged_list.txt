@@ -1,6 +1,0 @@
-file 'C:/Users/Admin/PycharmProjects/Jiwon_quiz_mp4/tmp/local_merge_0.mp4'
-file 'C:/Users/Admin/PycharmProjects/Jiwon_quiz_mp4/tmp/local_merge_1.mp4'
-file 'C:/Users/Admin/PycharmProjects/Jiwon_quiz_mp4/tmp/local_merge_2.mp4'
-file 'C:/Users/Admin/PycharmProjects/Jiwon_quiz_mp4/tmp/local_merge_3.mp4'
-file 'C:/Users/Admin/PycharmProjects/Jiwon_quiz_mp4/tmp/local_merge_4.mp4'
-file 'C:/Users/Admin/PycharmProjects/Jiwon_quiz_mp4/tmp/local_merge_5.mp4'
