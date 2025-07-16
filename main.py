@@ -19,6 +19,7 @@ import subprocess
 import shutil
 import time
 
+
 # uvicorn 로거 설정
 logger = logging.getLogger("uvicorn")
 logger.setLevel(logging.DEBUG)
@@ -511,14 +512,11 @@ def make_quiz_video_with_title_top(data_, output_path):
 
         print(f"✅ 생성 완료: {output_path}")
 
+
     except ffmpeg.Error as e:
         err_msg = e.stderr.decode() if e.stderr else str(e)
-        logger.debug(f"❌ ffmpeg 에러 발생:\n{err_msg}")
-        return {
-        "status": f"❌ ffmpeg 에러 발생:\n{err_msg}"
-        }
-        raise RuntimeError(f"ffmpeg error: {err_msg}")
-
+        logger.error(f"❌ ffmpeg 에러 발생:\n{err_msg}")
+        raise HTTPException(status_code=500, detail=f"ffmpeg 에러: {err_msg}")
 
 @app.post("/generate-video")
 async def generate_one(item: QuestionItem):
@@ -558,8 +556,9 @@ async def generate_one(item: QuestionItem):
         "ID": question_audio_id
     }
 
-    make_quiz_video_with_title_top(data_, output_file)
-
+    result = make_quiz_video_with_title_top(data_, output_file)
+    if isinstance(result, dict) and result.get("status") == "error":
+        return result  # ffmpeg 에러 내용을 그대로 클라이언트에 반환
     #create_video(data_, (output_file))
 
     BASE_URL = "https://primary-production-8af2.up.railway.app"
