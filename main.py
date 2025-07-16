@@ -322,6 +322,7 @@ async def generate_next(item: NextItem):
         "next_mp4": output_file
     }
 
+
 def make_next_mp4(data_, output_path):
     next_mp3_path = data_["next_mp3"]
     bgimage_path = data_["next_bg_image"]
