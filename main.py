@@ -326,22 +326,31 @@ async def generate_next(item: NextItem):
 def make_next_mp4(data_, output_path):
     next_mp3_path = data_["next_mp3"]
     bgimage_path = data_["next_bg_image"]
-    duration = MP3(next_mp3_path).info.length
+
     try:
         # 이미지 입력 (반복), 프레임레이트 1fps 지정
-        image_input = ffmpeg.input(bgimage_path, loop=1,framerate=25,t=duration)
+        image_input = ffmpeg.input(bgimage_path, loop=1,framerate=25)
+
+        question_a = AudioFileClip(next_mp3_path)
+        final_audio = CompositeAudioClip([question_a]).with_fps(44100)
+        output_audio_path = os.path.join("tmp", f"next_final.mp3")
+        final_audio.write_audiofile(output_audio_path)
         # 오디오 입력
-        audio_input = ffmpeg.input(next_mp3_path).with_fps(44100)
+        audio_input = ffmpeg.input(output_audio_path)
+
+
         # 스케일 필터 적용
         base = image_input.filter('scale', 1080, 720)
 
         ffmpeg.output(
             base, audio_input,
             output_path,
+
             vcodec='libx264',
             acodec='aac',
             audio_bitrate='192k',
             pix_fmt='yuv420p',
+            shortest=None,
             movflags='+faststart'
         ).run(overwrite_output=True)
 
@@ -352,35 +361,6 @@ def make_next_mp4(data_, output_path):
         print(f"❌ ffmpeg 에러 발생:\n{err_msg}")
         raise RuntimeError(f"ffmpeg error: {err_msg}")
 
-
-    """
-    try:
-        # 이미지 입력 (반복), 프레임레이트 1fps 지정
-        image_input = ffmpeg.input(bgimage_path, loop=1, framerate=1)
-        # 스케일 필터 적용
-        base = image_input.filter('scale', 1080, 720)
-
-        # 오디오 입력
-        audio_input = ffmpeg.input(next_mp3_path)
-
-        (
-            ffmpeg
-            .output(
-                base, audio_input,
-                output_path,
-                vcodec='libx264',
-                acodec='aac',
-                audio_bitrate='192k',
-                pix_fmt='yuv420p',
-                shortest=None,   # <= 이 줄은 삭제하는 게 좋음
-                movflags='+faststart'
-            )
-            .overwrite_output()
-            .run()
-        )
-
-        print(f"✅ 생성 완료: {output_path}")
-    """
 
 @app.get("/")
 def hello():
