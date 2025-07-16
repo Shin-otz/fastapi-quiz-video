@@ -58,7 +58,38 @@ def check_ffmpeg_drawtext():
     except Exception as e:
         logger.exception(f"❌ ffmpeg 필터 확인 중 오류 발생: {e}")
 
-def wrap_text(text, max_chars=30):
+def draw_text_with_spacing(text, font_path, font_size, color, size, spacing=2, align='left'):
+    """
+    spacing: 글자 사이 추가 간격(px)
+    """
+    img = Image.new("RGBA", size, (0, 0, 0, 0))
+    draw = ImageDraw.Draw(img)
+    font = ImageFont.truetype(font_path, font_size)
+
+    lines = text.split('\n')
+    y_offset = 0
+
+    for line in lines:
+        # 가로 위치 계산
+        if align == 'center':
+            total_width = sum([font.getbbox(ch)[2] for ch in line]) + spacing * (len(line)-1)
+            x_start = (size[0] - total_width) // 2
+        elif align == 'right':
+            total_width = sum([font.getbbox(ch)[2] for ch in line]) + spacing * (len(line)-1)
+            x_start = size[0] - total_width
+        else:  # left
+            x_start = 0
+
+        x = x_start
+        for ch in line:
+            draw.text((x, y_offset), ch, font=font, fill=color)
+            ch_width = font.getbbox(ch)[2]
+            x += ch_width + spacing  # 각 글자 후에 spacing 추가
+        # 다음 줄 y 오프셋
+        y_offset += font.getbbox("A")[3]
+
+    return img
+def wrap_text(text, max_chars=28):
     """
     입력 텍스트가 너무 길면 강제로 줄바꿈(\n) 추가
     기본값: 18글자 넘으면 줄바꿈 (대략 가로 30%)
@@ -508,12 +539,21 @@ def make_quiz_video_with_title_top_moviepy(data_, output_path):
         text_clips = []
 
         # 제목
-        img_title = create_text_image("한국사 퀴즈", font_path, 38, "black", (1080, 100),'center')
+        #img_title = create_text_image("한국사 퀴즈", font_path, 38, "black", (1080, 100),'center')
+        #title_clip = ImageClip(np.array(img_title)).with_position(("center", 16)).with_duration(final_audio.duration)
+        #text_clips.append(title_clip)
+
+        img_title = create_text_image("한국사 퀴즈", font_path, 38, "black", (1080, 100), align='center', spacing=2)
         title_clip = ImageClip(np.array(img_title)).with_position(("center", 16)).with_duration(final_audio.duration)
         text_clips.append(title_clip)
 
         # 문제
-        img_question = create_text_image(wrap_text(question_text), font_path, 32, "black", (800, 200))
+        #img_question = create_text_image(wrap_text(question_text), font_path, 32, "black", (800, 200))
+        #question_clip = ImageClip(np.array(img_question)).with_position((200, 120)).with_duration(final_audio.duration)
+        #text_clips.append(question_clip)
+
+        img_question = create_text_image(wrap_text(question_text), font_path, 32, "black", (800, 200), align='left',
+                                         spacing=4)
         question_clip = ImageClip(np.array(img_question)).with_position((200, 120)).with_duration(final_audio.duration)
         text_clips.append(question_clip)
 
