@@ -458,49 +458,61 @@ def create_text_image(
     font_size,
     color,
     size,
-    align='left',
-    spacing=1,        # 가로 자간(px)
-    line_spacing=5    # 세로 줄 간격(px)
+    key_term=None,
+    align='center',
+    spacing=1,
+    line_spacing=5
 ):
-    """
-    text         : 표시할 문자열 (이미 \n 로 줄바꿈 포함 가능)
-    font_path    : TTF 폰트 경로
-    font_size    : 폰트 크기
-    color        : 글자 색상
-    size         : (width, height)
-    align        : 'left', 'center', 'right'
-    spacing      : 글자와 글자 사이 간격(px)
-    line_spacing : 줄과 줄 사이 추가 간격(px)
-    """
     img = Image.new("RGBA", size, (0, 0, 0, 0))
     draw = ImageDraw.Draw(img)
     font = ImageFont.truetype(font_path, font_size)
 
+    # 키워드 강조 리스트
+    highlight_terms = list(dict.fromkeys(key_term.split(','))) if key_term else []
+
     lines = text.split('\n')
     y_offset = 0
-    for line in lines:
-        # 한 줄의 총 너비 계산 (가로 자간 포함)
-        widths = [font.getbbox(ch)[2] for ch in line]
-        total_width = sum(widths) + spacing * max(len(line) - 1, 0)
+    space_width = draw.textlength(" ", font=font)  # 공백 한 글자 너비
 
-        # 정렬에 따른 시작 x
+    for line in lines:
+        words = line.split(' ')
+        # 총 너비 계산
+        total_width = 0
+        for wi, word in enumerate(words):
+            for ch in word:
+                total_width += draw.textlength(ch, font=font) + spacing
+            if wi < len(words)-1:
+                total_width += space_width
+        # 정렬
         if align == 'center':
             x_start = (size[0] - total_width) // 2
         elif align == 'right':
             x_start = size[0] - total_width
-        else:  # left
+        else:
             x_start = 0
 
-        # 한 글자씩 찍기
-        x = x_start
-        for ch in line:
-            draw.text((x, y_offset), ch, font=font, fill=color)
-            x += font.getbbox(ch)[2] + spacing
+        # 단어 출력
+        for wi, word in enumerate(words):
+            for idx, char in enumerate(word):
+                is_highlight = False
+                for term in highlight_terms:
+                    tstart = word.find(term)
+                    tend = tstart + len(term)
+                    if tstart != -1 and tstart <= idx < tend:
+                        draw.text((x_start, y_offset), char, font=font, fill="blue")
+                        is_highlight = True
+                        break
+                if not is_highlight:
+                    draw.text((x_start, y_offset), char, font=font, fill=color)
+                x_start += draw.textlength(char, font=font) + spacing
+            if wi < len(words)-1:
+                x_start += space_width  # 단어 사이 공백 추가
 
-        # 세로 간격 추가
-        y_offset += font.getbbox("A")[3] + line_spacing
+        y_offset += font.getbbox("A")[3] - font.getbbox("A")[1] + line_spacing
 
     return img
+
+
 def make_quiz_video_with_title_top_moviepy(data_, output_path):
     try:
         font_path = os.path.abspath('tmp/NanumMyeongjo-YetHangul.ttf')
@@ -517,6 +529,7 @@ def make_quiz_video_with_title_top_moviepy(data_, output_path):
         hint_text = data_["hint_text"]
         answer_text = data_["answer_text"]
         explanation_text = data_["explanation"]
+        key_term_text = data_["key_term"]+","+answer_text
         ID = data_["ID"]
 
         # 오디오 클립
@@ -530,42 +543,40 @@ def make_quiz_video_with_title_top_moviepy(data_, output_path):
 
         # 배경 이미지
         base_clip = ImageClip(bgimage_path).with_duration(final_audio.duration)
-
         text_clips = []
 
         # 제목 (가운데 정렬, 자간 2px)
-        img_title = create_text_image("한국사 퀴즈", font_path, 38, "black", (1080, 100), align='center', spacing=1,line_spacing=10)
+        img_title = create_text_image("한국사 퀴즈", font_path, 38, "black", (500, 140),None ,align='center', spacing=1)
         title_clip = ImageClip(np.array(img_title)).with_position(("center", 16)).with_duration(final_audio.duration)
         text_clips.append(title_clip)
 
         # 문제 (왼쪽 정렬, 자간 4px)
-        img_question = create_text_image(wrap_text(question_text), font_path, 32, "black", (800, 200),
-                                         align='left', spacing=4)
+        img_question = create_text_image(wrap_text(question_text), font_path, 32, "black", (900, 300),key_term=key_term_text,align='left', spacing=2,line_spacing=15)
         question_clip = ImageClip(np.array(img_question)).with_position((200, 120)).with_duration(final_audio.duration)
         text_clips.append(question_clip)
 
         # 힌트 (가운데 정렬)
-        img_hint = create_text_image(f"힌트: {hint_text}", font_path, 30, "blue", (800, 100), align='center')
+        img_hint = create_text_image(f"힌트: {hint_text}", font_path, 30, "blue", (500, 150),None, align='center')
         hint_clip = ImageClip(np.array(img_hint)).with_position(("center", 250)) \
             .with_start(question_a.duration + 4).with_duration(2)
         text_clips.append(hint_clip)
 
         # 카운트다운
         for i in range(5, 0, -1):
-            img_count = create_text_image(str(i), font_path, 80, "red", (400, 200), align='center')
+            img_count = create_text_image(str(i), font_path, 80, "red", (500, 200),None, align='center')
             countdown_clip = ImageClip(np.array(img_count)).with_position("center") \
                 .with_start(question_a.duration + 1 + (5 - i)).with_duration(1)
             text_clips.append(countdown_clip)
 
         # 정답
-        img_answer = create_text_image(f"정답: {answer_text}", font_path, 30, "black", (800, 100), align='center')
+        img_answer = create_text_image(f"정답: {answer_text}", font_path, 30, "black", (500, 150),None, align='center')
         answer_clip = ImageClip(np.array(img_answer)).with_position(("center", 250)) \
             .with_start(question_a.duration + 1 + 5) \
             .with_duration(final_audio.duration - (question_a.duration + 1 + 5))
         text_clips.append(answer_clip)
 
         # 해설
-        img_expl = create_text_image(wrap_text(explanation_text), font_path, 28, "black", (1000, 300), align='left', spacing=1,line_spacing=10)
+        img_expl = create_text_image(wrap_text(explanation_text), font_path, 28, "black", (900, 300),key_term=key_term_text, align='left', spacing=2, line_spacing=15)
         explanation_clip = ImageClip(np.array(img_expl)).with_position((150, 420)) \
             .with_start(question_a.duration + 1 + 5 + answer_a.duration + 1) \
             .with_duration(explanation_a.duration)
@@ -585,7 +596,6 @@ def make_quiz_video_with_title_top_moviepy(data_, output_path):
         logger.error("❌ [MoviePy/FFmpeg] 에러 메시지: %s", str(e))
         logger.error("❌ [MoviePy/FFmpeg] 전체 스택:\n%s", traceback.format_exc())
         raise HTTPException(status_code=500, detail=f"🎥 moviepy/ffmpeg 에러: {str(e)}")
-
 
 def make_quiz_video_with_title_top(data_, output_path):
     # 🔥 모든 경로를 절대 경로로 변환
