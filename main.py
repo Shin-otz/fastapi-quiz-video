@@ -522,7 +522,7 @@ def make_quiz_video_with_title_top_moviepy(data_, output_path):
         text_clips = []
 
         # 제목 (가운데 정렬, 자간 2px)
-        img_title = create_text_image("한국사 퀴즈", font_path, 38, "black", (1080, 100), align='center', spacing=2)
+        img_title = create_text_image("한국사 퀴즈", font_path, 38, "black", (1080, 100), align='center', spacing=10)
         title_clip = ImageClip(np.array(img_title)).with_position(("center", 16)).with_duration(final_audio.duration)
         text_clips.append(title_clip)
 
@@ -533,28 +533,28 @@ def make_quiz_video_with_title_top_moviepy(data_, output_path):
         text_clips.append(question_clip)
 
         # 힌트 (가운데 정렬)
-        img_hint = create_text_image(f"힌트: {hint_text}", font_path, 30, "blue", (800, 50), align='center')
+        img_hint = create_text_image(f"힌트: {hint_text}", font_path, 30, "blue", (800, 100), align='center')
         hint_clip = ImageClip(np.array(img_hint)).with_position(("center", 250)) \
             .with_start(question_a.duration + 4).with_duration(2)
         text_clips.append(hint_clip)
 
         # 카운트다운
         for i in range(5, 0, -1):
-            img_count = create_text_image(str(i), font_path, 80, "red", (400, 150), align='center')
+            img_count = create_text_image(str(i), font_path, 80, "red", (400, 200), align='center')
             countdown_clip = ImageClip(np.array(img_count)).with_position("center") \
                 .with_start(question_a.duration + 1 + (5 - i)).with_duration(1)
             text_clips.append(countdown_clip)
 
         # 정답
-        img_answer = create_text_image(f"정답: {answer_text}", font_path, 30, "black", (800, 50), align='center')
+        img_answer = create_text_image(f"정답: {answer_text}", font_path, 30, "black", (800, 100), align='center')
         answer_clip = ImageClip(np.array(img_answer)).with_position(("center", 250)) \
             .with_start(question_a.duration + 1 + 5) \
             .with_duration(final_audio.duration - (question_a.duration + 1 + 5))
         text_clips.append(answer_clip)
 
         # 해설
-        img_expl = create_text_image(wrap_text(explanation_text), font_path, 28, "black", (1000, 300), align='left', spacing=2)
-        explanation_clip = ImageClip(np.array(img_expl)).with_position((150, 320)) \
+        img_expl = create_text_image(wrap_text(explanation_text), font_path, 28, "black", (1000, 300), align='left', spacing=10)
+        explanation_clip = ImageClip(np.array(img_expl)).with_position((150, 420)) \
             .with_start(question_a.duration + 1 + 5 + answer_a.duration + 1) \
             .with_duration(explanation_a.duration)
         text_clips.append(explanation_clip)
