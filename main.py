@@ -452,15 +452,25 @@ def hello():
 #async def general_exception_handler(request, exc):
 #    logger.error(f"예외 발생: {traceback.format_exc()}")
 #    return JSONResponse(status_code=500, content={"message": "Internal server error."})
-def create_text_image(text, font_path, font_size, color, size, align='center', spacing=0):
+def create_text_image(
+    text,
+    font_path,
+    font_size,
+    color,
+    size,
+    align='left',
+    spacing=1,        # 가로 자간(px)
+    line_spacing=5    # 세로 줄 간격(px)
+):
     """
-    text      : 표시할 문자열
-    font_path : TTF 폰트 경로
-    font_size : 폰트 크기
-    color     : 글자 색상
-    size      : (width, height) 이미지 크기
-    align     : 'left', 'center', 'right'
-    spacing   : 글자 간 간격(px)
+    text         : 표시할 문자열 (이미 \n 로 줄바꿈 포함 가능)
+    font_path    : TTF 폰트 경로
+    font_size    : 폰트 크기
+    color        : 글자 색상
+    size         : (width, height)
+    align        : 'left', 'center', 'right'
+    spacing      : 글자와 글자 사이 간격(px)
+    line_spacing : 줄과 줄 사이 추가 간격(px)
     """
     img = Image.new("RGBA", size, (0, 0, 0, 0))
     draw = ImageDraw.Draw(img)
@@ -469,11 +479,11 @@ def create_text_image(text, font_path, font_size, color, size, align='center', s
     lines = text.split('\n')
     y_offset = 0
     for line in lines:
-        # 한 줄의 총 너비 계산 (자간 포함)
+        # 한 줄의 총 너비 계산 (가로 자간 포함)
         widths = [font.getbbox(ch)[2] for ch in line]
         total_width = sum(widths) + spacing * max(len(line) - 1, 0)
 
-        # 정렬에 따른 시작 x 좌표
+        # 정렬에 따른 시작 x
         if align == 'center':
             x_start = (size[0] - total_width) // 2
         elif align == 'right':
@@ -481,14 +491,16 @@ def create_text_image(text, font_path, font_size, color, size, align='center', s
         else:  # left
             x_start = 0
 
+        # 한 글자씩 찍기
         x = x_start
         for ch in line:
             draw.text((x, y_offset), ch, font=font, fill=color)
             x += font.getbbox(ch)[2] + spacing
-        y_offset += font.getbbox("A")[3]
+
+        # 세로 간격 추가
+        y_offset += font.getbbox("A")[3] + line_spacing
 
     return img
-
 def make_quiz_video_with_title_top_moviepy(data_, output_path):
     try:
         font_path = os.path.abspath('tmp/NanumMyeongjo-YetHangul.ttf')
@@ -522,7 +534,7 @@ def make_quiz_video_with_title_top_moviepy(data_, output_path):
         text_clips = []
 
         # 제목 (가운데 정렬, 자간 2px)
-        img_title = create_text_image("한국사 퀴즈", font_path, 38, "black", (1080, 100), align='center', spacing=10)
+        img_title = create_text_image("한국사 퀴즈", font_path, 38, "black", (1080, 100), align='center', spacing=2,line_spacing=5)
         title_clip = ImageClip(np.array(img_title)).with_position(("center", 16)).with_duration(final_audio.duration)
         text_clips.append(title_clip)
 
@@ -553,7 +565,7 @@ def make_quiz_video_with_title_top_moviepy(data_, output_path):
         text_clips.append(answer_clip)
 
         # 해설
-        img_expl = create_text_image(wrap_text(explanation_text), font_path, 28, "black", (1000, 300), align='left', spacing=10)
+        img_expl = create_text_image(wrap_text(explanation_text), font_path, 28, "black", (1000, 300), align='left', spacing=2,line_spacing=5)
         explanation_clip = ImageClip(np.array(img_expl)).with_position((150, 420)) \
             .with_start(question_a.duration + 1 + 5 + answer_a.duration + 1) \
             .with_duration(explanation_a.duration)
