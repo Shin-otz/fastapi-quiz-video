@@ -534,7 +534,7 @@ def make_quiz_video_with_title_top_moviepy(data_, output_path):
         text_clips = []
 
         # 제목 (가운데 정렬, 자간 2px)
-        img_title = create_text_image("한국사 퀴즈", font_path, 38, "black", (1080, 100), align='center', spacing=2,line_spacing=5)
+        img_title = create_text_image("한국사 퀴즈", font_path, 38, "black", (1080, 100), align='center', spacing=1,line_spacing=10)
         title_clip = ImageClip(np.array(img_title)).with_position(("center", 16)).with_duration(final_audio.duration)
         text_clips.append(title_clip)
 
@@ -565,7 +565,7 @@ def make_quiz_video_with_title_top_moviepy(data_, output_path):
         text_clips.append(answer_clip)
 
         # 해설
-        img_expl = create_text_image(wrap_text(explanation_text), font_path, 28, "black", (1000, 300), align='left', spacing=2,line_spacing=5)
+        img_expl = create_text_image(wrap_text(explanation_text), font_path, 28, "black", (1000, 300), align='left', spacing=1,line_spacing=10)
         explanation_clip = ImageClip(np.array(img_expl)).with_position((150, 420)) \
             .with_start(question_a.duration + 1 + 5 + answer_a.duration + 1) \
             .with_duration(explanation_a.duration)
