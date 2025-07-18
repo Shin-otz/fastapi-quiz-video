@@ -885,6 +885,31 @@ async def generate_one(item: QuestionItem):
     }
 
 
+@app.post("/delete_file")
+def delete_file(filename: str):
+    FOLDER_PATH = "tmp"
+    deleted = []
+    not_found = []
+    errors = []
+
+    file_path = os.path.join(FOLDER_PATH, filename)
+    deleted.append(file_path)
+
+    # Delete tmp folder
+    for del_file in deleted:
+        file_path = Path(del_file)
+        if file_path.exists():
+            file_path.unlink()
+            print(f"✅ 파일 삭제 완료: {file_path}")
+        else:
+            print(f"⚠ 파일이 존재하지 않습니다: {file_path}")
+
+    return {
+        "deleted": deleted,
+        "not_found": not_found,
+        "errors": errors
+    }
+
 class FileDeleteRequest(BaseModel):
     filenames: List[str]
 
@@ -907,6 +932,7 @@ def delete_files(request: FileDeleteRequest):
             file_path.unlink()
             print(f"✅ 파일 삭제 완료: {file_path}")
         else:
+            not_found=f"{file_path}이 없습니다."
             print(f"⚠ 파일이 존재하지 않습니다: {file_path}")
 
     return {
