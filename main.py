@@ -790,6 +790,23 @@ async def generate_one(item: QuestionItem):
     result = make_quiz_video_with_title_top_moviepy(data_, output_file)
     if isinstance(result, dict) and result.get("status") == "error":
         return result  # ffmpeg 에러 내용을 그대로 클라이언트에 반환
+
+    del_files=[]
+    del_files.append(question_file)
+    del_files.append(answer_file)
+    del_files.append(explanation_file)
+    del_files.append(background_image_file)
+    del_files.append(image_file)
+
+    # Delete tmp folder
+    for del_file in del_files:
+        file_path = Path(del_file)
+        if file_path.exists():
+            file_path.unlink()
+            print(f"✅ 파일 삭제 완료: {file_path}")
+        else:
+            print(f"⚠️ 파일이 존재하지 않습니다: {file_path}")
+
     #create_video(data_, (output_file))
 
     BASE_URL = "https://primary-production-8af2.up.railway.app"
@@ -814,6 +831,33 @@ async def generate_one(item: QuestionItem):
         "Image": Path(background_image_file).exists(),
         "MP3": Path(question_file).exists(),
         "beef_mp3": Path("tmp/countdown_beep.mp3").exists()
+    }
+
+class FileDeleteRequest(BaseModel):
+    filenames: List[str]
+
+@app.post("/delete_files")
+def delete_files(request: FileDeleteRequest):
+    FOLDER_PATH="tmp"
+    deleted = []
+    not_found = []
+    errors = []
+
+    for fname in request.filenames:
+        file_path = os.path.join(FOLDER_PATH, fname)
+        if os.path.exists(file_path):
+            try:
+                os.remove(file_path)
+                deleted.append(fname)
+            except Exception as e:
+                errors.append({"file": fname, "error": str(e)})
+        else:
+            not_found.append(fname)
+
+    return {
+        "deleted": deleted,
+        "not_found": not_found,
+        "errors": errors
     }
 
 @app.get("/get-media")
