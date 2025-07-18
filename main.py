@@ -568,7 +568,6 @@ def create_text_image(
 
     return img
 
-
 def make_quiz_video_with_title_top_moviepy(data_, output_path):
     try:
         font_path = os.path.abspath('tmp/NanumMyeongjo-YetHangul.ttf')
@@ -604,13 +603,13 @@ def make_quiz_video_with_title_top_moviepy(data_, output_path):
         # ======== 제목 ========
         img_title = create_text_image("한국사 퀴즈", font_path, 38, "black", (540, 100),
                                       None, align='center', spacing=1)
-        title_clip = ImageClip(np.array(img_title)).with_position(("center", 16)).with_duration(final_audio.duration)
+        title_clip = ImageClip(np.array(img_title)).with_position(("center", 12)).with_duration(final_audio.duration)
         text_clips.append(title_clip)
 
         # ======== 문제 ========
-        img_question = create_text_image(wrap_text(question_text), font_path, 32, "black", (900, 300),
-                                         key_term=key_term_text, align='left', spacing=2, line_spacing=15)
-        question_clip = ImageClip(np.array(img_question)).with_position((210, 115)).with_duration(final_audio.duration)
+        img_question = create_text_image(wrap_text(question_text), font_path, 30, "black", (900, 300),
+                                         key_term=key_term_text, align='left', spacing=0, line_spacing=15)
+        question_clip = ImageClip(np.array(img_question)).with_position((190, 115)).with_duration(final_audio.duration)
         text_clips.append(question_clip)
 
         # ======== 추가 이미지 (문제 아래) ========
@@ -652,8 +651,8 @@ def make_quiz_video_with_title_top_moviepy(data_, output_path):
 
         # ======== 해설 ========
         img_expl = create_text_image(wrap_text(explanation_text), font_path, 28, "black", (900, 300),
-                                     key_term=key_term_text, align='left', spacing=2, line_spacing=15)
-        explanation_clip = ImageClip(np.array(img_expl)).with_position((210, 510)) \
+                                     key_term=key_term_text, align='left', spacing=0, line_spacing=15)
+        explanation_clip = ImageClip(np.array(img_expl)).with_position((200, 510)) \
             .with_start(question_a.duration + 1 + 5 + answer_a.duration + 1) \
             .with_duration(explanation_a.duration)
         text_clips.append(explanation_clip)
