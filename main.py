@@ -25,14 +25,17 @@ from PIL import Image, ImageDraw, ImageFont
 from moviepy.video.fx.FadeIn import FadeIn
 from moviepy.video.fx.FadeOut import FadeOut
 from moviepy.video.fx.CrossFadeIn import CrossFadeIn
+import sys
 
-# uvicorn 로거 설정
+# uvicorn과 같은 핸들러 사용
 logging.basicConfig(
-    level=logging.DEBUG,  # uvicorn에서 --log-level 로 조절 가능
+    level=logging.DEBUG,
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    stream=sys.stdout  # <- 꼭 stdout으로 지정
 )
 
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
 
 app = FastAPI()
 
