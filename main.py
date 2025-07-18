@@ -244,7 +244,6 @@ def download_mp4(url: str, filename: str) -> str:
     time.sleep(0.5)
     return str(path)
 
-
 def merge_videos_ffmpeg(file_paths: list[str], output_name: str) -> str:
     TMP_DIR = Path("tmp")
     TMP_DIR.mkdir(exist_ok=True)
@@ -259,8 +258,8 @@ def merge_videos_ffmpeg(file_paths: list[str], output_name: str) -> str:
             abs_path = Path(file_path).resolve().as_posix()
             f.write(f"file '{abs_path}'\n")
             del_files.append(abs_path) # 나중에 지우기
-
-    output_path = TMP_DIR / f"{output_name}_{str((len(del_files)+1)/2).zfill(2)}.mp4"
+    output_file = f"{output_name}_{(str((len(del_files)+1)/2)).zfill(2)}.mp4"
+    output_path = os.path.join(TMP_DIR,output_file)
 
     del_files.append(list_path)  # 나중에 지우기
     """
@@ -294,10 +293,11 @@ def merge_videos_ffmpeg(file_paths: list[str], output_name: str) -> str:
         "-i", str(list_path),
         "-c", "copy",
         "-c:a", "aac",
-        str(output_path.resolve().as_posix())
+        str(output_path)
     ]
 
     subprocess.run(command, check=True)
+
 
     # Delete tmp folder
     for del_file in del_files:
@@ -308,9 +308,7 @@ def merge_videos_ffmpeg(file_paths: list[str], output_name: str) -> str:
         else:
             print(f"⚠ 파일이 존재하지 않습니다: {file_path}")
 
-    return {"status": "ok", "output": output_path}
-
-    return str(output_path)
+    return {"status": "ok", "output": output_file}
 
 
 @app.post("/merge-videos")
