@@ -24,7 +24,8 @@ import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
 # uvicorn 로거 설정
-logger = logging.getLogger("uvicorn")
+#logger = logging.getLogger("uvicorn")
+logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
 app = FastAPI()
@@ -885,24 +886,37 @@ async def generate_one(item: QuestionItem):
     }
 
 
+
 @app.post("/delete_file")
-def delete_file(filename: str):
-    FOLDER_PATH = "tmp"
+def delete_file(data: FileRequest):
     deleted = []
     not_found = []
     errors = []
 
-    file_path = os.path.join(FOLDER_PATH, filename)
-    deleted.append(file_path)
+    try:
+        file_path = os.path.join(FOLDER_PATH, data.filename)
+        deleted.append(file_path)
 
-    # Delete tmp folder
-    for del_file in deleted:
-        file_path = Path(del_file)
-        if file_path.exists():
-            file_path.unlink()
-            print(f"✅ 파일 삭제 완료: {file_path}")
-        else:
-            print(f"⚠ 파일이 존재하지 않습니다: {file_path}")
+        # 파일 삭제
+        for del_file in deleted:
+            path_obj = Path(del_file)
+            if path_obj.exists():
+                try:
+                    path_obj.unlink()
+                    logger.info(f"✅ 파일 삭제 완료: {path_obj}")
+                except Exception as e:
+                    err_msg = f"❌ 파일 삭제 중 오류: {path_obj}, {e}"
+                    logger.error(err_msg)   # 🚀 Railway 콘솔에도 찍힘
+                    errors.append({"file": str(path_obj), "error": str(e)})
+            else:
+                not_found.append(str(path_obj))
+                logger.warning(f"⚠ 파일이 존재하지 않음: {path_obj}")
+
+    except Exception as e:
+        # 최상위 예외 처리
+        err_msg = f"❌ delete_file 핸들러 내부 오류: {e}"
+        logger.error(err_msg)
+        errors.append({"file": data.filename, "error": str(e)})
 
     return {
         "deleted": deleted,
