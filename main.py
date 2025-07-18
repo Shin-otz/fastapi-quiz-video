@@ -24,9 +24,12 @@ import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
 # uvicorn 로거 설정
-#logger = logging.getLogger("uvicorn")
+logging.basicConfig(
+    level=logging.DEBUG,  # uvicorn에서 --log-level 로 조절 가능
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+)
+
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
 
 app = FastAPI()
 
