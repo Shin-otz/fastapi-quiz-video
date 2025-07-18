@@ -894,7 +894,7 @@ def delete_file(data: FileRequest):
     errors = []
 
     try:
-        file_path = os.path.join(FOLDER_PATH, data.filename)
+        file_path = os.path.join('tmp', data.filename)
         deleted.append(file_path)
 
         # 파일 삭제
