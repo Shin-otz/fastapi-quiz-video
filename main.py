@@ -260,7 +260,7 @@ def merge_videos_ffmpeg(file_paths: list[str], output_name: str) -> str:
             f.write(f"file '{abs_path}'\n")
             del_files.append(abs_path) # 나중에 지우기
 
-    output_path = TMP_DIR / f"{output_name}_{(str(len(del_files)+1)).zfill(2)}.mp4"
+    output_path = TMP_DIR / f"{output_name}_{str((len(del_files)+1)/2).zfill(2)}.mp4"
 
     del_files.append(list_path)  # 나중에 지우기
     """
