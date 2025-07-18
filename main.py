@@ -30,7 +30,7 @@ logger.setLevel(logging.DEBUG)
 app = FastAPI()
 
 logger.debug("HAHa ...")
-logger.debug(subprocess.check_output(["ffmpeg","-version"]).decode())
+logger.debug(subprocess.check_output(["ffmpeg", "-version"]).decode())
 # tmp 폴더 생성
 Path("tmp").mkdir(parents=True, exist_ok=True)
 
@@ -58,6 +58,7 @@ def check_ffmpeg_drawtext():
     except Exception as e:
         logger.exception(f"❌ ffmpeg 필터 확인 중 오류 발생: {e}")
 
+
 def draw_text_with_spacing(text, font_path, font_size, color, size, spacing=2, align='left'):
     """
     spacing: 글자 사이 추가 간격(px)
@@ -72,10 +73,10 @@ def draw_text_with_spacing(text, font_path, font_size, color, size, spacing=2, a
     for line in lines:
         # 가로 위치 계산
         if align == 'center':
-            total_width = sum([font.getbbox(ch)[2] for ch in line]) + spacing * (len(line)-1)
+            total_width = sum([font.getbbox(ch)[2] for ch in line]) + spacing * (len(line) - 1)
             x_start = (size[0] - total_width) // 2
         elif align == 'right':
-            total_width = sum([font.getbbox(ch)[2] for ch in line]) + spacing * (len(line)-1)
+            total_width = sum([font.getbbox(ch)[2] for ch in line]) + spacing * (len(line) - 1)
             x_start = size[0] - total_width
         else:  # left
             x_start = 0
@@ -89,6 +90,8 @@ def draw_text_with_spacing(text, font_path, font_size, color, size, spacing=2, a
         y_offset += font.getbbox("A")[3]
 
     return img
+
+
 def wrap_text(text, max_chars=28):
     """
     입력 텍스트가 너무 길면 강제로 줄바꿈(\n) 추가
@@ -117,15 +120,17 @@ class QuestionItem(BaseModel):
     question: str
     hint: str
     answer: str
-    explanation : str
+    explanation: str
     background_url: str
     image_url: str
     question_url: str
     answer_url: str
     explanation_url: str
 
+
 class FileRequest(BaseModel):
     filename: str
+
 
 def check_ffmpeg_installed():
     try:
@@ -144,11 +149,13 @@ def check_ffmpeg_installed():
         logger.error(e.stderr.decode())
         raise RuntimeError("FFmpeg가 실행 중 오류가 발생했습니다.")
 
+
 def extract_drive_id(url: str) -> str:
     match = re.search(r"/d/([a-zA-Z0-9_-]+)", url)
     if match:
         return match.group(1)
     return str(uuid.uuid4())[:8]
+
 
 def convert_drive_url(url: str) -> str:
     match = re.search(r"/d/([a-zA-Z0-9_-]+)", url)
@@ -156,6 +163,7 @@ def convert_drive_url(url: str) -> str:
         raise ValueError("올바른 Google Drive 링크가 아닙니다.")
     file_id = match.group(1)
     return f"https://drive.google.com/uc?export=download&id={file_id}"
+
 
 def download_file(url: str, filename: str) -> str:
     if "drive.google.com" in url:
@@ -186,6 +194,7 @@ def download_file_tmp2(url: str, filename: str) -> str:
             f.write(r.content)
     return str(path)
 
+
 @app.get("/check-list")
 def check_list(filename: str):
     file_path = Path(f"tmp/{filename}_list.txt")
@@ -193,6 +202,7 @@ def check_list(filename: str):
         return FileResponse(path=str(file_path), media_type="text/plain")
     else:
         return {"error": "list.txt 파일이 존재하지 않음"}
+
 
 def download_drive_file(url: str, dest: Path) -> str:
     # URL에서 ID 추출
@@ -202,6 +212,7 @@ def download_drive_file(url: str, dest: Path) -> str:
     dest.write_bytes(r.content)
     return str(dest)
 
+
 def drive_url_to_direct_link(url: str) -> str:
     # 예: https://drive.google.com/file/d/1abcDEF/view?usp=sharing
     match = re.search(r"/d/([a-zA-Z0-9_-]+)", url)
@@ -210,10 +221,12 @@ def drive_url_to_direct_link(url: str) -> str:
     file_id = match.group(1)
     return f"https://drive.google.com/uc?export=download&id={file_id}"
 
+
 class VideoMergeRequest(BaseModel):
     sheet_name: str
     merged_video_name: str
     videos: List[str]  # ✅ 중요: 문자열 리스트로 정의
+
 
 def download_mp4(url: str, filename: str) -> str:
     direct_url = drive_url_to_direct_link(url)
@@ -225,7 +238,7 @@ def download_mp4(url: str, filename: str) -> str:
             for chunk in r.iter_content(chunk_size=8192):
                 f.write(chunk)
     while True:
-        if os.path.exists(path) and os.path.getsize(path)>1000:
+        if os.path.exists(path) and os.path.getsize(path) > 1000:
             break
     time.sleep(0.5)
     return str(path)
@@ -238,12 +251,15 @@ def merge_videos_ffmpeg(file_paths: list[str], output_name: str) -> str:
     list_path = TMP_DIR / f"{output_name}_list.txt"
     output_path = TMP_DIR / f"{output_name}.mp4"
 
+    del_files = []
+
     # ✅ 절대경로 사용
     with open(list_path, "w", encoding="utf-8") as f:
         for file_path in file_paths:
             abs_path = Path(file_path).resolve().as_posix()
             f.write(f"file '{abs_path}'\n")
-
+            del_files.append(abs_path)  # 나중에 지우기
+    del_files.append(list_path)  # 나중에 지우기
     """
     command = [
         "ffmpeg",
@@ -254,7 +270,7 @@ def merge_videos_ffmpeg(file_paths: list[str], output_name: str) -> str:
         "-c", "copy",
         str(output_path.resolve().as_posix())
     ]
-    
+
     command = [
         "ffmpeg",
         "-f", "concat",
@@ -279,6 +295,18 @@ def merge_videos_ffmpeg(file_paths: list[str], output_name: str) -> str:
     ]
 
     subprocess.run(command, check=True)
+
+    # Delete tmp folder
+    for del_file in del_files:
+        file_path = Path(del_file)
+        if file_path.exists():
+            file_path.unlink()
+            print(f"✅ 파일 삭제 완료: {file_path}")
+        else:
+            print(f"⚠ 파일이 존재하지 않습니다: {file_path}")
+
+    return {"status": "ok", "output": output_path}
+
     return str(output_path)
 
 
@@ -375,6 +403,8 @@ async def generate_next(item: NextItem):
         "next_bg_image": background_image_file,
         "next_mp4": output_file
     }
+
+
 def make_next_moviepy_mp4(data_, output_path):
     next_mp3_path = os.path.abspath(data_["next_mp3"])
     bgimage_path = os.path.abspath(data_["next_bg_image"])
@@ -400,6 +430,20 @@ def make_next_moviepy_mp4(data_, output_path):
     )
 
     print(f"✅ 생성 완료 (moviepy): {output_path}")
+
+    del_files = []
+    del_files.append(next_mp3_path)
+    del_files.append(bgimage_path)
+
+    # Delete tmp folder
+    for del_file in del_files:
+        file_path = Path(del_file)
+        if file_path.exists():
+            file_path.unlink()
+            print(f"✅ 파일 삭제 완료: {file_path}")
+        else:
+            print(f"⚠ 파일이 존재하지 않습니다: {file_path}")
+
     return {"status": "ok", "output": output_path}
 
 
@@ -417,7 +461,6 @@ def make_next_mp4(data_, output_path):
         final_audio.write_audiofile(output_audio_path)
         # 오디오 입력
         audio_input = ffmpeg.input(output_audio_path)
-
 
         # 스케일 필터 적용
         base = image_input.filter('scale', 1080, 720)
@@ -441,6 +484,7 @@ def make_next_mp4(data_, output_path):
         print(f"❌ ffmpeg 에러 발생:\n{err_msg}")
         raise RuntimeError(f"ffmpeg error: {err_msg}")
 
+
 @app.get("/")
 def hello():
     logger.info("👋 INFO 로그 작동!")
@@ -448,20 +492,21 @@ def hello():
     file = Path(-audio_file).exists()
     return {"message": "hello"}
 
-#@app.exception_handler(Exception)
-#async def general_exception_handler(request, exc):
+
+# @app.exception_handler(Exception)
+# async def general_exception_handler(request, exc):
 #    logger.error(f"예외 발생: {traceback.format_exc()}")
 #    return JSONResponse(status_code=500, content={"message": "Internal server error."})
 def create_text_image(
-    text,
-    font_path,
-    font_size,
-    color,
-    size,
-    key_term=None,
-    align='center',
-    spacing=1,
-    line_spacing=5
+        text,
+        font_path,
+        font_size,
+        color,
+        size,
+        key_term=None,
+        align='center',
+        spacing=1,
+        line_spacing=5
 ):
     img = Image.new("RGBA", size, (0, 0, 0, 0))
     draw = ImageDraw.Draw(img)
@@ -481,7 +526,7 @@ def create_text_image(
         for wi, word in enumerate(words):
             for ch in word:
                 total_width += draw.textlength(ch, font=font) + spacing
-            if wi < len(words)-1:
+            if wi < len(words) - 1:
                 total_width += space_width
         # 정렬
         if align == 'center':
@@ -505,7 +550,7 @@ def create_text_image(
                 if not is_highlight:
                     draw.text((x_start, y_offset), char, font=font, fill=color)
                 x_start += draw.textlength(char, font=font) + spacing
-            if wi < len(words)-1:
+            if wi < len(words) - 1:
                 x_start += space_width  # 단어 사이 공백 추가
 
         y_offset += font.getbbox("A")[3] - font.getbbox("A")[1] + line_spacing
@@ -523,13 +568,14 @@ def make_quiz_video_with_title_top_moviepy(data_, output_path):
         explanation_audio = os.path.abspath(data_["explanation_audio"])
         beef_audio = os.path.abspath(data_["beef_audio"])
         bgimage_path = os.path.abspath(data_["background_image"])
+        image_path = os.path.abspath(data_["image_"])
 
         # 텍스트
         question_text = data_["question_text"]
         hint_text = data_["hint_text"]
         answer_text = data_["answer_text"]
         explanation_text = data_["explanation"]
-        key_term_text = data_["key_term"]+","+answer_text
+        key_term_text = data_["key_term"] + "," + answer_text
         ID = data_["ID"]
 
         # 오디오 클립
@@ -546,37 +592,39 @@ def make_quiz_video_with_title_top_moviepy(data_, output_path):
         text_clips = []
 
         # 제목 (가운데 정렬, 자간 2px)
-        img_title = create_text_image("한국사 퀴즈", font_path, 38, "black", (500, 140),None ,align='center', spacing=1)
+        img_title = create_text_image("한국사 퀴즈", font_path, 38, "black", (500, 140), None, align='center', spacing=1)
         title_clip = ImageClip(np.array(img_title)).with_position(("center", 16)).with_duration(final_audio.duration)
         text_clips.append(title_clip)
 
         # 문제 (왼쪽 정렬, 자간 4px)
-        img_question = create_text_image(wrap_text(question_text), font_path, 32, "black", (900, 300),key_term=key_term_text,align='left', spacing=2,line_spacing=15)
+        img_question = create_text_image(wrap_text(question_text), font_path, 32, "black", (900, 300),
+                                         key_term=key_term_text, align='left', spacing=2, line_spacing=15)
         question_clip = ImageClip(np.array(img_question)).with_position((200, 120)).with_duration(final_audio.duration)
         text_clips.append(question_clip)
 
         # 힌트 (가운데 정렬)
-        img_hint = create_text_image(f"힌트: {hint_text}", font_path, 30, "blue", (500, 150),None, align='center')
+        img_hint = create_text_image(f"힌트: {hint_text}", font_path, 30, "blue", (500, 150), None, align='center')
         hint_clip = ImageClip(np.array(img_hint)).with_position(("center", 250)) \
             .with_start(question_a.duration + 4).with_duration(2)
         text_clips.append(hint_clip)
 
         # 카운트다운
         for i in range(5, 0, -1):
-            img_count = create_text_image(str(i), font_path, 80, "red", (500, 200),None, align='center')
+            img_count = create_text_image(str(i), font_path, 80, "red", (500, 200), None, align='center')
             countdown_clip = ImageClip(np.array(img_count)).with_position("center") \
                 .with_start(question_a.duration + 1 + (5 - i)).with_duration(1)
             text_clips.append(countdown_clip)
 
         # 정답
-        img_answer = create_text_image(f"정답: {answer_text}", font_path, 30, "black", (500, 150),None, align='center')
+        img_answer = create_text_image(f"정답: {answer_text}", font_path, 30, "black", (500, 150), None, align='center')
         answer_clip = ImageClip(np.array(img_answer)).with_position(("center", 250)) \
             .with_start(question_a.duration + 1 + 5) \
             .with_duration(final_audio.duration - (question_a.duration + 1 + 5))
         text_clips.append(answer_clip)
 
         # 해설
-        img_expl = create_text_image(wrap_text(explanation_text), font_path, 28, "black", (900, 300),key_term=key_term_text, align='left', spacing=2, line_spacing=15)
+        img_expl = create_text_image(wrap_text(explanation_text), font_path, 28, "black", (900, 300),
+                                     key_term=key_term_text, align='left', spacing=2, line_spacing=15)
         explanation_clip = ImageClip(np.array(img_expl)).with_position((150, 420)) \
             .with_start(question_a.duration + 1 + 5 + answer_a.duration + 1) \
             .with_duration(explanation_a.duration)
@@ -589,6 +637,23 @@ def make_quiz_video_with_title_top_moviepy(data_, output_path):
         final_clip.write_videofile(output_path, fps=25, codec='libx264', audio_codec='aac')
 
         print(f"✅ 생성 완료 (moviepy): {output_path}")
+
+        del_files = []
+        del_files.append(question_audio)
+        del_files.append(answer_audio)
+        del_files.append(explanation_audio)
+        del_files.append(bgimage_path)
+        del_files.append(image_path)
+
+        # Delete tmp folder
+        for del_file in del_files:
+            file_path = Path(del_file)
+            if file_path.exists():
+                file_path.unlink()
+                print(f"✅ 파일 삭제 완료: {file_path}")
+            else:
+                print(f"⚠️ 파일이 존재하지 않습니다: {file_path}")
+
         return {"status": "ok", "output": output_path}
 
     except Exception as e:
@@ -596,6 +661,7 @@ def make_quiz_video_with_title_top_moviepy(data_, output_path):
         logger.error("❌ [MoviePy/FFmpeg] 에러 메시지: %s", str(e))
         logger.error("❌ [MoviePy/FFmpeg] 전체 스택:\n%s", traceback.format_exc())
         raise HTTPException(status_code=500, detail=f"🎥 moviepy/ffmpeg 에러: {str(e)}")
+
 
 def make_quiz_video_with_title_top(data_, output_path):
     # 🔥 모든 경로를 절대 경로로 변환
@@ -676,7 +742,7 @@ def make_quiz_video_with_title_top(data_, output_path):
             box=1,
             boxcolor='black@0.01',
             boxborderw=10,
-            enable=f'between(t,{question_a.duration+4},{question_a.duration+1+5})'
+            enable=f'between(t,{question_a.duration + 4},{question_a.duration + 1 + 5})'
         )
 
         for i in range(5, 0, -1):
@@ -718,7 +784,7 @@ def make_quiz_video_with_title_top(data_, output_path):
             box=1,
             boxcolor='black@0.0',
             boxborderw=10,
-            enable=f'gte(t,{question_a.duration + 1 + 5 + answer_a.duration+1})'
+            enable=f'gte(t,{question_a.duration + 1 + 5 + answer_a.duration + 1})'
         )
 
         (
@@ -748,6 +814,7 @@ def make_quiz_video_with_title_top(data_, output_path):
         # 디코드 후 출력
         logger.error(f"[STDERR DECODED]\n{e.stderr.decode(errors='ignore')}")
         raise HTTPException(status_code=500, detail=f"ffmpeg 에러: {e.stderr.decode(errors='ignore')}")
+
 
 @app.post("/generate-video")
 async def generate_one(item: QuestionItem):
@@ -791,23 +858,7 @@ async def generate_one(item: QuestionItem):
     if isinstance(result, dict) and result.get("status") == "error":
         return result  # ffmpeg 에러 내용을 그대로 클라이언트에 반환
 
-    del_files=[]
-    del_files.append(question_file)
-    del_files.append(answer_file)
-    del_files.append(explanation_file)
-    del_files.append(background_image_file)
-    del_files.append(image_file)
-
-    # Delete tmp folder
-    for del_file in del_files:
-        file_path = Path(del_file)
-        if file_path.exists():
-            file_path.unlink()
-            print(f"✅ 파일 삭제 완료: {file_path}")
-        else:
-            print(f"⚠️ 파일이 존재하지 않습니다: {file_path}")
-
-    #create_video(data_, (output_file))
+    # create_video(data_, (output_file))
 
     BASE_URL = "https://primary-production-8af2.up.railway.app"
     public_video_url = f"{BASE_URL}/static/{output_filename}"
@@ -833,32 +884,37 @@ async def generate_one(item: QuestionItem):
         "beef_mp3": Path("tmp/countdown_beep.mp3").exists()
     }
 
+
 class FileDeleteRequest(BaseModel):
     filenames: List[str]
 
+
 @app.post("/delete_files")
 def delete_files(request: FileDeleteRequest):
-    FOLDER_PATH="tmp"
+    FOLDER_PATH = "tmp"
     deleted = []
     not_found = []
     errors = []
 
     for fname in request.filenames:
         file_path = os.path.join(FOLDER_PATH, fname)
-        if os.path.exists(file_path):
-            try:
-                os.remove(file_path)
-                deleted.append(fname)
-            except Exception as e:
-                errors.append({"file": fname, "error": str(e)})
+        deleted.append(file_path)
+
+    # Delete tmp folder
+    for del_file in deleted:
+        file_path = Path(del_file)
+        if file_path.exists():
+            file_path.unlink()
+            print(f"✅ 파일 삭제 완료: {file_path}")
         else:
-            not_found.append(fname)
+            print(f"⚠ 파일이 존재하지 않습니다: {file_path}")
 
     return {
         "deleted": deleted,
         "not_found": not_found,
         "errors": errors
     }
+
 
 @app.get("/get-media")
 def get_media(filename: str):
@@ -874,6 +930,7 @@ def get_media(filename: str):
 
     return FileResponse(path=file_path, media_type=mime_type, filename=filename)
 
+
 @app.post("/check-audio")
 def check_audio_post(data: FileRequest):
     filename = data.filename
@@ -886,6 +943,7 @@ def check_audio_post(data: FileRequest):
         )
     else:
         return {"error": f"{filename} not found"}
+
 
 @app.get("/check-file")
 def check_file(filename: str = Query(..., description="파일 이름")):
