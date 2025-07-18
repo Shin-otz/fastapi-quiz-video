@@ -22,6 +22,9 @@ from moviepy import AudioFileClip, CompositeAudioClip, ImageClip, TextClip, Comp
 import moviepy
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
+from moviepy.video.fx.FadeIn import FadeIn
+from moviepy.video.fx.FadeOut import FadeOut
+from moviepy.video.fx.CrossFadeIn import CrossFadeIn
 
 # uvicorn 로거 설정
 logging.basicConfig(
@@ -570,7 +573,7 @@ def make_quiz_video_with_title_top_moviepy(data_, output_path):
     try:
         font_path = os.path.abspath('tmp/NanumMyeongjo-YetHangul.ttf')
 
-        # 경로들
+        # 경로
         question_audio = os.path.abspath(data_["question_audio"])
         answer_audio = os.path.abspath(data_["answer_audio"])
         explanation_audio = os.path.abspath(data_["explanation_audio"])
@@ -584,9 +587,8 @@ def make_quiz_video_with_title_top_moviepy(data_, output_path):
         answer_text = data_["answer_text"]
         explanation_text = data_["explanation"]
         key_term_text = data_["key_term"] + "," + answer_text
-        ID = data_["ID"]
 
-        # 오디오 클립
+        # 오디오
         question_a = AudioFileClip(question_audio)
         answer_a = AudioFileClip(answer_audio).with_start(question_a.duration + 1 + 5)
         beef_a = AudioFileClip(beef_audio).with_start(question_a.duration + 1)
@@ -595,70 +597,80 @@ def make_quiz_video_with_title_top_moviepy(data_, output_path):
         )
         final_audio = CompositeAudioClip([question_a, answer_a, beef_a, explanation_a]).with_fps(44100)
 
-        # 배경 이미지
+        # 배경
         base_clip = ImageClip(bgimage_path).with_duration(final_audio.duration)
         text_clips = []
 
-        # 제목 (가운데 정렬, 자간 2px)
-        img_title = create_text_image("한국사 퀴즈", font_path, 38, "black", (500, 140), None, align='center', spacing=1)
+        # ======== 제목 ========
+        img_title = create_text_image("한국사 퀴즈", font_path, 38, "black", (540, 100),
+                                      None, align='center', spacing=1)
         title_clip = ImageClip(np.array(img_title)).with_position(("center", 16)).with_duration(final_audio.duration)
         text_clips.append(title_clip)
 
-        # 문제 (왼쪽 정렬, 자간 4px)
+        # ======== 문제 ========
         img_question = create_text_image(wrap_text(question_text), font_path, 32, "black", (900, 300),
                                          key_term=key_term_text, align='left', spacing=2, line_spacing=15)
-        question_clip = ImageClip(np.array(img_question)).with_position((200, 120)).with_duration(final_audio.duration)
+        question_clip = ImageClip(np.array(img_question)).with_position((210, 115)).with_duration(final_audio.duration)
         text_clips.append(question_clip)
 
-        # 힌트 (가운데 정렬)
-        img_hint = create_text_image(f"힌트: {hint_text}", font_path, 30, "blue", (500, 150), None, align='center')
-        hint_clip = ImageClip(np.array(img_hint)).with_position(("center", 250)) \
+        # ======== 추가 이미지 (문제 아래) ========
+        extra_img_clip = (
+            ImageClip(image_path)
+                .resized(width=360)  # ✅ 정확한 메서드 이름
+                .with_position((580, 150))
+                .with_duration(final_audio.duration)
+                .with_opacity(0.5)
+                .with_effects([
+                CrossFadeIn(3),  # 0.5초 페이드인
+            ])
+        )
+
+        text_clips.append(extra_img_clip)
+
+        # ======== 힌트 ========
+        img_hint = create_text_image(f"힌트: {hint_text}", font_path, 30, "blue", (500, 150),
+                                     None, align='left')
+        hint_clip = ImageClip(np.array(img_hint)).with_position((300, 250)) \
             .with_start(question_a.duration + 4).with_duration(2)
         text_clips.append(hint_clip)
 
-        # 카운트다운
+        # ======== 카운트다운 ========
         for i in range(5, 0, -1):
-            img_count = create_text_image(str(i), font_path, 80, "red", (500, 200), None, align='center')
+            img_count = create_text_image(str(i), font_path, 80, "red", (500, 200),
+                                          None, align='center')
             countdown_clip = ImageClip(np.array(img_count)).with_position("center") \
                 .with_start(question_a.duration + 1 + (5 - i)).with_duration(1)
             text_clips.append(countdown_clip)
 
-        # 정답
-        img_answer = create_text_image(f"정답: {answer_text}", font_path, 30, "black", (500, 150), None, align='center')
-        answer_clip = ImageClip(np.array(img_answer)).with_position(("center", 250)) \
+        # ======== 정답 ========
+        img_answer = create_text_image(f"정답: {answer_text}", font_path, 30, "black", (500, 150),
+                                       None, align='left')
+        answer_clip = ImageClip(np.array(img_answer)).with_position((300, 350)) \
             .with_start(question_a.duration + 1 + 5) \
             .with_duration(final_audio.duration - (question_a.duration + 1 + 5))
         text_clips.append(answer_clip)
 
-        # 해설
+        # ======== 해설 ========
         img_expl = create_text_image(wrap_text(explanation_text), font_path, 28, "black", (900, 300),
                                      key_term=key_term_text, align='left', spacing=2, line_spacing=15)
-        explanation_clip = ImageClip(np.array(img_expl)).with_position((150, 420)) \
+        explanation_clip = ImageClip(np.array(img_expl)).with_position((210, 510)) \
             .with_start(question_a.duration + 1 + 5 + answer_a.duration + 1) \
             .with_duration(explanation_a.duration)
         text_clips.append(explanation_clip)
 
-        # 합성
+        # ======== 합성 및 출력 ========
         final_clip = CompositeVideoClip([base_clip] + text_clips).with_audio(final_audio)
-
         output_path = os.path.abspath(output_path)
         final_clip.write_videofile(output_path, fps=25, codec='libx264', audio_codec='aac')
 
         print(f"✅ 생성 완료 (moviepy): {output_path}")
 
-        del_files = []
-        del_files.append(question_audio)
-        del_files.append(answer_audio)
-        del_files.append(explanation_audio)
-        del_files.append(bgimage_path)
-        del_files.append(image_path)
-
-        # Delete tmp folder
-        for del_file in del_files:
+        # ======== 임시파일 삭제 ========
+        for del_file in [question_audio, answer_audio, explanation_audio, bgimage_path, image_path]:
             file_path = Path(del_file)
             if file_path.exists():
                 file_path.unlink()
-                print(f"✅ 파일 삭제 완료: {file_path}")
+                print(f"🗑️ 파일 삭제 완료: {file_path}")
             else:
                 print(f"⚠️ 파일이 존재하지 않습니다: {file_path}")
 
@@ -669,7 +681,6 @@ def make_quiz_video_with_title_top_moviepy(data_, output_path):
         logger.error("❌ [MoviePy/FFmpeg] 에러 메시지: %s", str(e))
         logger.error("❌ [MoviePy/FFmpeg] 전체 스택:\n%s", traceback.format_exc())
         raise HTTPException(status_code=500, detail=f"🎥 moviepy/ffmpeg 에러: {str(e)}")
-
 
 def make_quiz_video_with_title_top(data_, output_path):
     # 🔥 모든 경로를 절대 경로로 변환
