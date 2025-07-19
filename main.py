@@ -47,7 +47,6 @@ Path("tmp").mkdir(parents=True, exist_ok=True)
 app = FastAPI()
 app.mount("/static", StaticFiles(directory="tmp"), name="static")
 
-
 def check_ffmpeg_drawtext():
     try:
         # ffmpeg 필터 목록에서 drawtext가 있는지 확인
@@ -253,6 +252,80 @@ def download_mp4(url: str, filename: str) -> str:
     time.sleep(0.5)
     return str(path)
 
+def merge_videos_with_fade(file_paths: list[str], output_name: str, fade_duration: float = 1.0) -> str:
+    TMP_DIR = Path("tmp")
+    TMP_DIR.mkdir(exist_ok=True)
+
+    # 첫 번째 파일을 기준으로 시작
+    output_path = TMP_DIR / f"{output_name}.mp4"
+
+    if len(file_paths) < 2:
+        raise ValueError("최소 두 개 이상의 영상이 필요합니다.")
+
+    # 순차적으로 xfade로 합치기
+    current = file_paths[0]
+    for idx, next_video in enumerate(file_paths[1:], start=1):
+        tmp_out = TMP_DIR / f"{output_name}_step{idx}.mp4"
+
+        # xfade는 두개의 입력만 받으므로, 반복적으로 이어 붙임
+        # fade_duration만큼 교차 전환
+        command = [
+            "ffmpeg",
+            "-y",
+            "-i", current,
+            "-i", next_video,
+            "-filter_complex",
+            f"[0:v][1:v]xfade=transition=fade:duration={fade_duration}:offset=0[v];"
+            f"[0:a][1:a]acrossfade=d={fade_duration}[a]",
+            "-map", "[v]",
+            "-map", "[a]",
+            "-c:v", "libx264",
+            "-crf", "18",
+            "-preset", "veryfast",
+            "-c:a", "aac",
+            "-b:a", "192k",
+            str(tmp_out)
+        ]
+        subprocess.run(command, check=True)
+
+        # 다음 단계 입력으로 사용
+        current = str(tmp_out)
+
+    # 최종 결과물
+    final_output = TMP_DIR / f"{output_name}_final.mp4"
+    Path(current).rename(final_output)
+    return str(final_output)
+
+def merge_videos_ffmpeg2(file_paths: list[str], output_name: str) -> str:
+    TMP_DIR = Path("tmp")
+    TMP_DIR.mkdir(exist_ok=True)
+
+    video_files = []
+
+    # ✅ 절대경로 사용
+    for file_path in file_paths:
+        abs_path = Path(file_path).resolve().as_posix()
+        video_files.append(abs_path) # 나중에 지우기
+
+    file_num = str((len(video_files)+1)//2).zfill(2)
+
+    output_file = f"{output_name}_{file_num}.mp4"
+    output_path = TMP_DIR / output_file
+
+    # 2. 함수 호출
+    # fade_duration = 페이드 전환이 걸리는 시간(초)
+    output_path = merge_videos_with_fade(file_paths=video_files, output_name=output_path, fade_duration=1.5 )
+
+    # Delete tmp folder
+    for del_file in video_files:
+        file_path = Path(del_file)
+        if file_path.exists():
+            file_path.unlink()
+            print(f"✅ 파일 삭제 완료: {file_path}")
+        else:
+            print(f"⚠ 파일이 존재하지 않습니다: {file_path}")
+
+    return {"status": "ok", "output": output_file}
 
 def merge_videos_ffmpeg(file_paths: list[str], output_name: str) -> str:
     TMP_DIR = Path("tmp")
@@ -311,7 +384,6 @@ def merge_videos_ffmpeg(file_paths: list[str], output_name: str) -> str:
 
     subprocess.run(command, check=True)
 
-
     # Delete tmp folder
     for del_file in del_files:
         file_path = Path(del_file)
@@ -359,7 +431,7 @@ async def merge_videos(payload: List[VideoMergeRequest]):
         try:
             print("----")
             print(file_paths)
-            output_path = merge_videos_ffmpeg(file_paths, merged_name)
+            output_path = merge_videos_ffmpeg2(file_paths, merged_name)
             status = "success"
         except Exception as e:
             print(f"병합 실패: {e}")
