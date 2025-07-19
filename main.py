@@ -296,36 +296,46 @@ def merge_videos_with_fade(file_paths: list[str], output_name: str, fade_duratio
     Path(current).rename(final_output)
     return str(final_output)
 
-def merge_videos_ffmpeg2(file_paths: list[str], output_name: str) -> str:
+def get_duration(path: str) -> float:
+    info = ffmpeg.probe(path)
+    return float(info['format']['duration'])
+
+def merge_videos_ffmpeg2(file_paths: list[str], output_name: str, fade_duration: float = 1.0) -> str:
     TMP_DIR = Path("tmp")
     TMP_DIR.mkdir(exist_ok=True)
 
-    video_files = []
+    # 경로를 / 형식으로
+    file_paths = [str(Path(p).resolve().as_posix()) for p in file_paths]
 
-    # ✅ 절대경로 사용
-    for file_path in file_paths:
-        abs_path = Path(file_path).resolve().as_posix()
-        video_files.append(abs_path) # 나중에 지우기
+    current = file_paths[0]
+    for idx, next_file in enumerate(file_paths[1:], start=1):
+        tmp_out = TMP_DIR / f"{output_name}_step{idx}.mp4"
+        tmp_out = tmp_out.resolve().as_posix()
 
-    file_num = str((len(video_files)+1)//2).zfill(2)
+        dur = get_duration(current)
+        offset = max(dur - fade_duration, 0)
 
-    output_file = f"{output_name}_{file_num}.mp4"
-    output_path = TMP_DIR / output_file
+        filter_complex = (
+            f"[0:v][1:v]xfade=transition=fade:duration={fade_duration}:offset={offset}[v];"
+            f"[0:a][1:a]acrossfade=d={fade_duration}[a]"
+        )
 
-    # 2. 함수 호출
-    # fade_duration = 페이드 전환이 걸리는 시간(초)
-    output_path = merge_videos_with_fade(file_paths=video_files, output_name=output_path, fade_duration=1.5 )
+        cmd = [
+            "ffmpeg", "-y",
+            "-i", current,
+            "-i", next_file,
+            "-filter_complex", filter_complex,
+            "-map", "[v]", "-map", "[a]",
+            "-c:v", "libx264", "-crf", "18", "-preset", "fast",
+            "-c:a", "aac", "-b:a", "192k",
+            tmp_out
+        ]
+        subprocess.run(cmd, check=True)
+        current = tmp_out
 
-    # Delete tmp folder
-    for del_file in video_files:
-        file_path = Path(del_file)
-        if file_path.exists():
-            file_path.unlink()
-            print(f"✅ 파일 삭제 완료: {file_path}")
-        else:
-            print(f"⚠ 파일이 존재하지 않습니다: {file_path}")
-
-    return {"status": "ok", "output": output_file}
+    final_output = TMP_DIR / f"{output_name}_final.mp4"
+    Path(current).rename(final_output)
+    return str(final_output)
 
 def merge_videos_ffmpeg(file_paths: list[str], output_name: str) -> str:
     TMP_DIR = Path("tmp")
@@ -395,7 +405,6 @@ def merge_videos_ffmpeg(file_paths: list[str], output_name: str) -> str:
 
     return {"status": "ok", "output": output_file}
 
-
 @app.post("/merge-videos")
 async def merge_videos(payload: List[VideoMergeRequest]):
     results = []
@@ -431,7 +440,7 @@ async def merge_videos(payload: List[VideoMergeRequest]):
         try:
             print("----")
             print(file_paths)
-            output_path = merge_videos_ffmpeg2(file_paths, merged_name)
+            output_path = merge_videos_ffmpeg(file_paths, merged_name)
             status = "success"
         except Exception as e:
             print(f"병합 실패: {e}")
