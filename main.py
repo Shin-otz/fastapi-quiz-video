@@ -315,6 +315,13 @@ async def generate_video_from_layer(entries: List[Dict[str, Any]] = Body(...)):
 
     return results
 
+def supports_korean(font_path):
+    try:
+        font = ImageFont.truetype(font_path, 30)
+        return font.getmask("한").getbbox() is not None
+    except Exception:
+        return False
+
 
 def make_video_from_layers(
     mapped_format: Dict[str, Any],
@@ -336,7 +343,8 @@ def make_video_from_layers(
     if used_files is None:
         used_files = set()
 
-    font_path = os.path.abspath("tmp/NanumMyeongjo-YetHangul.ttf")
+    #font_path = os.path.abspath("tmp/NanumMyeongjo-YetHangul.ttf")
+    font_path = os.path.abspath("tmp/BMYEONSUNG_ttf.ttf")
     if not os.path.exists(font_path):
         raise FileNotFoundError(f"❌ 폰트 파일이 존재하지 않습니다: {font_path}")
 
