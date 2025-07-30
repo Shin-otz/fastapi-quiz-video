@@ -31,7 +31,7 @@
       "endLinkedLayerId": null,
       "endRelativeAnchor": "end",
       "endOffset": 0,
-      "imgUrl": "blob:http://localhost:3000/c13a23be-8c2d-4089-8fc8-616939fca566",
+      "imgUrl": "blob:http://localhost:3000/91c99549-ef4f-4e61-95fb-5890edfce4ef",
       "linkedStartLayerId": null,
       "linkedEndLayerId": null
     },
@@ -107,7 +107,7 @@
       "textAlign": "center",
       "verticalAlign": "middle",
       "lineHeight": 1,
-      "fontFamily": "Comic Sans MS",
+      "fontFamily": "BMYEONSUNG",
       "highlight": "",
       "highlightColor": "#ff0000"
     },
@@ -150,7 +150,7 @@
       "textAlign": "left",
       "verticalAlign": "top",
       "lineHeight": 1,
-      "fontFamily": "Comic Sans MS",
+      "fontFamily": "BMYEONSUNG",
       "highlight": "Keyword",
       "highlightColor": "#ff0000"
     },
@@ -218,7 +218,8 @@
       "fontSize": 50,
       "color": "#ff0000",
       "textAlign": "center",
-      "verticalAlign": "middle"
+      "verticalAlign": "middle",
+      "fontFamily": "BMYEONSUNG"
     },
     {
       "id": 1753287427893,
@@ -259,7 +260,7 @@
       "textAlign": "center",
       "verticalAlign": "middle",
       "lineHeight": 2,
-      "fontFamily": "Arial",
+      "fontFamily": "BMYEONSUNG",
       "highlight": "",
       "highlightColor": "#ff0000"
     },
@@ -302,7 +303,7 @@
       "textAlign": "center",
       "verticalAlign": "middle",
       "lineHeight": 1,
-      "fontFamily": "Comic Sans MS",
+      "fontFamily": "BMYEONSUNG",
       "highlight": "",
       "highlightColor": "#ff0000"
     },
@@ -376,7 +377,7 @@
       "textAlign": "left",
       "verticalAlign": "top",
       "lineHeight": 1,
-      "fontFamily": "Comic Sans MS",
+      "fontFamily": "BMYEONSUNG",
       "highlight": "Keyword",
       "highlightColor": "#ff0000"
     },

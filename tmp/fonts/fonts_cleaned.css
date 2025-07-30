@@ -1,0 +1,44 @@
+@font-face {
+  font-family: "Arial";
+  src: url("./Arial.ttf") format("truetype");
+}
+
+@font-face {
+  font-family: "NanumGothic";
+  src: url("./NanumGothic.ttf") format("truetype");
+}
+
+@font-face {
+  font-family: "Pretendard";
+  src: url("./Pretendard-Regular.otf") format("opentype");
+}
+
+@font-face {
+  font-family: "BMJUA";
+  src: url("./BMJUA_ttf.ttf") format("truetype");
+}
+
+@font-face {
+  font-family: "BMYEONSUNG";
+  src: url("./BMYEONSUNG_ttf.ttf") format("truetype");
+}
+
+@font-face {
+  font-family: "BMDOHYEON";
+  src: url("./BMDOHYEON_ttf.ttf") format("truetype");
+}
+
+@font-face {
+  font-family: "SpoqaHanSans";
+  src: url("./SpoqaHanSans-Regular.ttf") format("truetype");
+}
+
+@font-face {
+  font-family: "GmarketSansMedium";
+  src: url("./GmarketSansTTFMedium.ttf") format("truetype");
+}
+
+@font-face {
+  font-family: "Kakao";
+  src: url("./KakaoRegular.ttf") format("truetype");
+}
