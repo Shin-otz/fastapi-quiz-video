@@ -317,7 +317,7 @@ def make_video_from_layers(
     used_files: set = None
 ) -> str:
     layers_data = mapped_format["layers"]
-    canvas_ratio = mapped_format.get("canvasRatio", "1080x720")
+    canvas_ratio = mapped_format.get("canvasRatio", "1024x768")
     canvas_width, canvas_height = map(int, canvas_ratio.split("x"))
     total_duration = max(float(l.get("endTime", 0)) for l in layers_data)
     base_clip = ColorClip((canvas_width, canvas_height), color=(255, 255, 255)).with_duration(total_duration)
@@ -359,13 +359,25 @@ def make_video_from_layers(
                 except Exception as e:
                     print("❌ 이미지 클립 생성 실패:", e)
 
+
         elif t == "text":
             txt = layer.get("text", "")
             font_size = int(layer.get("fontSize", 30))
             color = layer.get("color", "black")
             align = layer.get("textAlign", "left")
+            vertical_align = layer.get("verticalAlign", "top")
+            line_height = float(layer.get("lineHeight", 1.0))
             wrapped = wrap_text(txt)
-            img = draw_text_with_spacing(wrapped, font_path, font_size, color, (w, h), spacing=1, align=align)
+            img = draw_text_with_spacing(
+                wrapped,
+                font_path,
+                font_size,
+                color,
+                (w, h),
+                spacing=line_height,
+                align=align,
+                vertical_align=vertical_align
+            )
             clip = (ImageClip(np.array(img))
                     .with_start(start)
                     .with_duration(dur)
@@ -405,8 +417,6 @@ def make_video_from_layers(
         final_audio.close()
 
     return output_path
-
-
 
 
 
@@ -541,37 +551,49 @@ def recalculate_layer_timings_for_backend(layers: List[dict], default_duration: 
     return new_layers
 
 
-def draw_text_with_spacing(text, font_path, font_size, color, size, spacing=2, align='left'):
-    """
-    spacing: 글자 사이 추가 간격(px)
-    """
-    img = Image.new("RGBA", size, (0, 0, 0, 0))
-    draw = ImageDraw.Draw(img)
-    font = ImageFont.truetype(font_path, font_size)
 
-    lines = text.split('\n')
-    y_offset = 0
+def draw_text_with_spacing(
+    text: str,
+    font_path: str,
+    font_size: int,
+    color: str,
+    size: tuple,
+    spacing: float = 1.0,
+    align: str = "left",
+    vertical_align: str = "top"
+):
+    width, height = size
+    font = ImageFont.truetype(font_path, font_size)
+    lines = text.split("\n")
+
+    line_height = int(font_size * spacing)
+    total_text_height = line_height * len(lines)
+
+    # 수직 정렬
+    if vertical_align in ("center", "middle"):
+        y = (height - total_text_height) // 2
+    elif vertical_align == "bottom":
+        y = height - total_text_height
+    else:
+        y = 0  # top
+
+    img = Image.new("RGBA", (width, height), (255, 255, 255, 0))
+    draw = ImageDraw.Draw(img)
 
     for line in lines:
-        # 가로 위치 계산
-        if align == 'center':
-            total_width = sum([font.getbbox(ch)[2] for ch in line]) + spacing * (len(line) - 1)
-            x_start = (size[0] - total_width) // 2
-        elif align == 'right':
-            total_width = sum([font.getbbox(ch)[2] for ch in line]) + spacing * (len(line) - 1)
-            x_start = size[0] - total_width
-        else:  # left
-            x_start = 0
+        line_width = draw.textlength(line, font=font)
+        if align == "center":
+            x = (width - line_width) // 2
+        elif align == "right":
+            x = width - line_width
+        else:
+            x = 0
 
-        x = x_start
-        for ch in line:
-            draw.text((x, y_offset), ch, font=font, fill=color)
-            ch_width = font.getbbox(ch)[2]
-            x += ch_width + spacing  # 각 글자 후에 spacing 추가
-        # 다음 줄 y 오프셋
-        y_offset += font.getbbox("A")[3]
+        draw.text((x, y), line, font=font, fill=color)
+        y += line_height
 
     return img
+
 
 
 def wrap_text(text, max_chars=28):
