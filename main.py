@@ -269,6 +269,7 @@ async def generate_video_from_layer(entries: List[Dict[str, Any]] = Body(...)):
             )
             mapped["layers"] = layers
 
+
             # 🎬 파일명 (UUID 기반 실제 저장용)
             filename = f"video_{uuid.uuid4().hex[:6]}.mp4"
             output_path = os.path.join("tmp", filename)
