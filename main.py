@@ -251,8 +251,8 @@ async def generate_video_from_layer(entries: List[Dict[str, Any]] = Body(...)):
     n8n으로부터 전달받은 JSON을 기반으로 영상 생성 + 임시 파일 정리 포함
     """
     results = []
-    used_files = set()            # ✅ 전체 used_files 추적
-    download_cache = {}          # ✅ 캐시도 재사용
+    used_files = set()
+    download_cache = {}
 
     for entry in entries:
         try:
@@ -261,7 +261,7 @@ async def generate_video_from_layer(entries: List[Dict[str, Any]] = Body(...)):
             mapped = entry["mappedFormat"]
             layers = mapped["layers"]
 
-            # 전체 시간 및 연결 정보 계산
+            # 전체 타이밍 계산
             layers = recalculate_all_timings(
                 layers,
                 download_cache=download_cache,
@@ -269,11 +269,16 @@ async def generate_video_from_layer(entries: List[Dict[str, Any]] = Body(...)):
             )
             mapped["layers"] = layers
 
-            # 파일명 및 경로 지정
+            # 🎬 파일명 (UUID 기반 실제 저장용)
             filename = f"video_{uuid.uuid4().hex[:6]}.mp4"
             output_path = os.path.join("tmp", filename)
 
-            # 🎬 영상 생성
+            # 🎯 video_output_fn (question mp3 기반 ID 사용)
+            question_url = entry.get("question_mp3") or entry.get("questionUrl", "")
+            file_id = extract_drive_id_safe(question_url)
+            video_output_fn = f"video_{file_id}.mp4" if file_id else ""
+
+            # 영상 생성
             result_path = make_video_from_layers(
                 mapped,
                 output_path,
@@ -281,11 +286,12 @@ async def generate_video_from_layer(entries: List[Dict[str, Any]] = Body(...)):
                 used_files=used_files
             )
 
-            # ✅ 응답 구성
+            # 결과 추가
             results.append({
                 "status": "success",
                 "videoPath": result_path,
-                "filename": filename,
+                "filename": filename,                  # 실제 저장된 랜덤 파일명
+                "video_output_fn": video_output_fn,    # 논리적 ID 기반 이름
                 "duration": max(float(l.get("endTime", 0)) for l in layers),
             })
 
@@ -296,7 +302,7 @@ async def generate_video_from_layer(entries: List[Dict[str, Any]] = Body(...)):
                 "message": str(e)
             })
 
-    # ✅ 모든 사용된 임시 파일 정리
+    # 🔥 사용된 임시 파일 삭제
     print("\n🧹 사용된 임시 파일 삭제 시작")
     for path in used_files:
         try:
@@ -685,7 +691,13 @@ def extract_drive_id(url: str) -> str:
     if match:
         return match.group(1)
     return str(uuid.uuid4())[:8]
-
+def extract_drive_id_safe(url: str) -> str:
+    if not url or not isinstance(url, str):
+        return str(uuid.uuid4())[:8]  # fallback for None or non-str
+    match = re.search(r"/d/([a-zA-Z0-9_-]+)", url)
+    if match:
+        return match.group(1)
+    return str(uuid.uuid4())[:8]
 
 def convert_drive_url(url: str) -> str:
     # Google Drive 보기 링크 → 직접 다운로드 링크 변환
