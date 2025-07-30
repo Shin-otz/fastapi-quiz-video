@@ -4,10 +4,15 @@ httpx
 requests
 pydantic
 python-multipart
+
+# Google Drive 연동용
 google-api-python-client
 google-auth
 google-auth-oauthlib
 google-auth-httplib2
+
+# 영상/오디오 처리
 ffmpeg-python
-mutagen
 moviepy==2.1.2
+mutagen
+pydub
