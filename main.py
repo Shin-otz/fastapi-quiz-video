@@ -53,7 +53,6 @@ Path("tmp").mkdir(parents=True, exist_ok=True)
 app = FastAPI()
 app.mount("/static", StaticFiles(directory="tmp"), name="static")
 
-
 # 기존 영상 생성 함수는 그대로 사용
 
 def apply_mapping_to_format(entry: dict) -> dict:

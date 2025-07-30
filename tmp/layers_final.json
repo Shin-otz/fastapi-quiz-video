@@ -31,7 +31,7 @@
       "endLinkedLayerId": null,
       "endRelativeAnchor": "end",
       "endOffset": 0,
-      "imgUrl": "blob:http://localhost:3000/7ea0a5c2-587a-43e0-9d48-c127bc176ae7",
+      "imgUrl": "blob:http://localhost:3000/c13a23be-8c2d-4089-8fc8-616939fca566",
       "linkedStartLayerId": null,
       "linkedEndLayerId": null
     },
@@ -97,7 +97,7 @@
       "endLinkedLayerId": null,
       "endRelativeAnchor": "end",
       "endOffset": 0,
-      "text": "제 목",
+      "text": " 한국사 퀴즈",
       "mp3Key": "Title_mp3",
       "mp3Url": "",
       "mp3PreGap": 0,
@@ -106,7 +106,10 @@
       "color": "#000000",
       "textAlign": "center",
       "verticalAlign": "middle",
-      "lineHeight": 1
+      "lineHeight": 1,
+      "fontFamily": "Comic Sans MS",
+      "highlight": "",
+      "highlightColor": "#ff0000"
     },
     {
       "id": 1753287427268,
@@ -146,7 +149,10 @@
       "color": "#000000",
       "textAlign": "left",
       "verticalAlign": "top",
-      "lineHeight": 1
+      "lineHeight": 1,
+      "fontFamily": "Comic Sans MS",
+      "highlight": "Keyword",
+      "highlightColor": "#ff0000"
     },
     {
       "id": 1753288039865,
@@ -252,7 +258,10 @@
       "color": "#000000",
       "textAlign": "center",
       "verticalAlign": "middle",
-      "lineHeight": 2
+      "lineHeight": 2,
+      "fontFamily": "Arial",
+      "highlight": "",
+      "highlightColor": "#ff0000"
     },
     {
       "id": 1753287792457,
@@ -292,7 +301,10 @@
       "color": "#000000",
       "textAlign": "center",
       "verticalAlign": "middle",
-      "lineHeight": 1
+      "lineHeight": 1,
+      "fontFamily": "Comic Sans MS",
+      "highlight": "",
+      "highlightColor": "#ff0000"
     },
     {
       "id": 1753369825310,
@@ -363,7 +375,10 @@
       "color": "#000000",
       "textAlign": "left",
       "verticalAlign": "top",
-      "lineHeight": 1
+      "lineHeight": 1,
+      "fontFamily": "Comic Sans MS",
+      "highlight": "Keyword",
+      "highlightColor": "#ff0000"
     },
     {
       "id": 1753369969063,
