@@ -31,7 +31,7 @@
       "endLinkedLayerId": null,
       "endRelativeAnchor": "end",
       "endOffset": 0,
-      "imgUrl": "blob:http://localhost:3000/91c99549-ef4f-4e61-95fb-5890edfce4ef",
+      "imgUrl": "blob:http://localhost:3000/b77df257-62f1-46f4-9a0f-2a6c3814102b",
       "linkedStartLayerId": null,
       "linkedEndLayerId": null
     },
@@ -151,8 +151,8 @@
       "verticalAlign": "top",
       "lineHeight": 1,
       "fontFamily": "BMYEONSUNG",
-      "highlight": "Keyword",
-      "highlightColor": "#ff0000"
+      "highlight": "Key_Term",
+      "highlightColor": "#0000ff"
     },
     {
       "id": 1753288039865,
@@ -378,8 +378,8 @@
       "verticalAlign": "top",
       "lineHeight": 1,
       "fontFamily": "BMYEONSUNG",
-      "highlight": "Keyword",
-      "highlightColor": "#ff0000"
+      "highlight": "Key_Term",
+      "highlightColor": "#0000ff"
     },
     {
       "id": 1753369969063,

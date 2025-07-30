@@ -118,9 +118,9 @@ payload_raw = '''
           "textAlign": "center",
           "verticalAlign": "middle",
           "lineHeight": 1,
-          "fontFamily": "Comic Sans MS",
+          "fontFamily": "BMYEONSUNG",
           "highlight": "",
-          "highlightColor": "#ff0000"
+          "highlightColor": "#0000ff"
         },
         {
           "id": 1753287427268,
@@ -161,9 +161,9 @@ payload_raw = '''
           "textAlign": "left",
           "verticalAlign": "top",
           "lineHeight": 1,
-          "fontFamily": "Comic Sans MS",
-          "highlight": "Keyword",
-          "highlightColor": "#ff0000"
+          "fontFamily": "BMYEONSUNG",
+          "highlight": "통일신라,문무왕",
+          "highlightColor": "#ff00ff"
         },
         {
           "id": 1753288039865,
@@ -229,7 +229,8 @@ payload_raw = '''
           "fontSize": 50,
           "color": "#ff0000",
           "textAlign": "center",
-          "verticalAlign": "middle"
+          "verticalAlign": "middle",
+          "fontFamily": "BMYEONSUNG"
         },
         {
           "id": 1753287427893,
@@ -270,7 +271,7 @@ payload_raw = '''
           "textAlign": "center",
           "verticalAlign": "middle",
           "lineHeight": 2,
-          "fontFamily": "Arial",
+          "fontFamily": "BMYEONSUNG",
           "highlight": "",
           "highlightColor": "#ff0000"
         },
@@ -313,7 +314,7 @@ payload_raw = '''
           "textAlign": "center",
           "verticalAlign": "middle",
           "lineHeight": 1,
-          "fontFamily": "Comic Sans MS",
+          "fontFamily": "BMYEONSUNG",
           "highlight": "",
           "highlightColor": "#ff0000"
         },
@@ -387,9 +388,9 @@ payload_raw = '''
           "textAlign": "left",
           "verticalAlign": "top",
           "lineHeight": 1,
-          "fontFamily": "Comic Sans MS",
-          "highlight": "Keyword",
-          "highlightColor": "#ff0000"
+          "fontFamily": "BMYEONSUNG",
+          "highlight": "통일신라,문무왕",
+          "highlightColor": "#0000ff"
         },
         {
           "id": 1753369969063,
@@ -426,6 +427,7 @@ payload_raw = '''
     }
   }
 ]
+
 '''
 
 payload=json.loads(payload_raw)
@@ -436,9 +438,17 @@ url = f"{BASE_URL}/generate-video-from-layer"
 response = requests.post(url, json=payload)
 
 # 응답 확인
+# 응답 확인 및 출력 포맷팅
 if response.status_code == 200:
-    print("Success!")
-    print("Response JSON:", response.json())
+    print("✅ Success!")
+    try:
+        res_json = response.json()
+        print("📦 Response JSON:")
+        print(json.dumps(res_json, indent=2, ensure_ascii=False))  # 이쁘게 출력
+    except json.JSONDecodeError:
+        print("⚠️ JSON 디코딩 실패:")
+        print(response.text)
 else:
-    print("Failed with status code:", response.status_code)
-    print("Response:", response.text)
+    print(f"❌ Failed with status code: {response.status_code}")
+    print("🧾 Response Text:")
+    print(response.text)

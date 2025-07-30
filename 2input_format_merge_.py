@@ -9,22 +9,22 @@ payload_raw = '''
 [
   {
     "Question_type": "주관식",
-    "Topic": "조선",
-    "Released": "제1탄",
-    "Q_number": 1,
+    "Topic": "통일신라",
+    "Released": "제2탄",
+    "Q_number": 3,
     "mp4": "",
-    "Keyword": "조선,마지막 왕,순종",
-    "Hint": "ㅅㅈ",
-    "Answer": "순종",
+    "Hint": "ㅁㅁㅇ",
+    "Answer": "문무왕",
     "Title": "한국사 퀴즈",
     "BG_Image": "https://drive.google.com/file/d/1vjc4FlwhjfiT6Vcb2EE1Jg0FrE3ZcFFR/view?usp=drive_link",
-    "Image_": "https://drive.google.com/file/d/1Uc4jt9pjWzH4bsa7hoFkzMeySgJfsgJF/view?usp=drive_link",
-    "Question": "조선왕조를 끝낸 마지막 왕의 이름은 무엇인가요?",
-    "Question_MP3": "https://drive.google.com/file/d/1kidcqSbLFKpV-71jrpGx2BRNwTfPlVXB/view?usp=drive_link",
+    "Image_": "https://drive.google.com/file/d/1q-EBVO7vfiIh3E5TIVWJqhlpKQjTxyDB/view?usp=drive_link",
+    "Question": "통일신라 시대를 연 왕은 누구인가요?",
+    "Question_MP3": "https://drive.google.com/file/d/1I_VQpyzDkU48bSIKkpIbnHHKAYK63mYE/view?usp=drive_link",
     "Countdown": "5",
-    "Answer_MP3": "https://drive.google.com/file/d/1X2B0JeOBVji2jm7SYuDoOSGxDCz-WRms/view?usp=drive_link ",
-    "Explain": "조선의 마지막 왕은 순종으로, 그는 대한제국의 마지막 황제이기도 합니다. 조선 왕조는 그의 통치 아래 1910년 일본에 의해 강제 병합됨으로써 역사 속에서 사라졌습니다.",
-    "Explain_MP3": "https://drive.google.com/file/d/1Bo68nDDSYxArbT2ZSnfFdw2PLY8BS7Bb/view?usp=drive_link",
+    "Answer_MP3": "https://drive.google.com/file/d/1q4YcCS2HfiS0cTksp4OqrVIBu7HeCJMQ/view?usp=drive_link ",
+    "Key_Term": "통일신라,문무왕",
+    "Explain": "통일신라 시대는 신라의 문무왕이 삼국을 통일하면서 시작되었습니다. 문무왕의 업적으로는 삼국 통일이 있습니다.",
+    "Explain_MP3": "https://drive.google.com/file/d/1LZAhd1qpwkrYl-6lK2hOhnR4qWNFYXnH/view?usp=drive_link",
     "format": {
       "canvasRatio": "1024x768",
       "displayScale": 1,
@@ -58,7 +58,7 @@ payload_raw = '''
           "endLinkedLayerId": null,
           "endRelativeAnchor": "end",
           "endOffset": 0,
-          "imgUrl": "blob:http://localhost:3000/7ea0a5c2-587a-43e0-9d48-c127bc176ae7",
+          "imgUrl": "blob:http://localhost:3000/91c99549-ef4f-4e61-95fb-5890edfce4ef",
           "linkedStartLayerId": null,
           "linkedEndLayerId": null
         },
@@ -124,7 +124,7 @@ payload_raw = '''
           "endLinkedLayerId": null,
           "endRelativeAnchor": "end",
           "endOffset": 0,
-          "text": "제 목",
+          "text": " 한국사 퀴즈",
           "mp3Key": "Title_mp3",
           "mp3Url": "",
           "mp3PreGap": 0,
@@ -133,7 +133,10 @@ payload_raw = '''
           "color": "#000000",
           "textAlign": "center",
           "verticalAlign": "middle",
-          "lineHeight": 1
+          "lineHeight": 1,
+          "fontFamily": "BMYEONSUNG",
+          "highlight": "",
+          "highlightColor": "#0000ff"
         },
         {
           "id": 1753287427268,
@@ -173,7 +176,10 @@ payload_raw = '''
           "color": "#000000",
           "textAlign": "left",
           "verticalAlign": "top",
-          "lineHeight": 1
+          "lineHeight": 1,
+          "fontFamily": "BMYEONSUNG",
+          "highlight": "Key_Term",
+          "highlightColor": "#ff00ff"
         },
         {
           "id": 1753288039865,
@@ -239,7 +245,8 @@ payload_raw = '''
           "fontSize": 50,
           "color": "#ff0000",
           "textAlign": "center",
-          "verticalAlign": "middle"
+          "verticalAlign": "middle",
+          "fontFamily": "BMYEONSUNG"
         },
         {
           "id": 1753287427893,
@@ -279,7 +286,10 @@ payload_raw = '''
           "color": "#000000",
           "textAlign": "center",
           "verticalAlign": "middle",
-          "lineHeight": 2
+          "lineHeight": 2,
+          "fontFamily": "BMYEONSUNG",
+          "highlight": "",
+          "highlightColor": "#ff0000"
         },
         {
           "id": 1753287792457,
@@ -319,7 +329,10 @@ payload_raw = '''
           "color": "#000000",
           "textAlign": "center",
           "verticalAlign": "middle",
-          "lineHeight": 1
+          "lineHeight": 1,
+          "fontFamily": "BMYEONSUNG",
+          "highlight": "",
+          "highlightColor": "#ff0000"
         },
         {
           "id": 1753369825310,
@@ -365,7 +378,7 @@ payload_raw = '''
           "gapAfter": 0,
           "x": 204.99995958777856,
           "y": 532.999958970815,
-          "width": 600,
+          "width": 650,
           "height": 150,
           "backgroundColor": "#ffffff",
           "backgroundOpacity": 0,
@@ -390,7 +403,10 @@ payload_raw = '''
           "color": "#000000",
           "textAlign": "left",
           "verticalAlign": "top",
-          "lineHeight": 1
+          "lineHeight": 1,
+          "fontFamily": "BMYEONSUNG",
+          "highlight": "Key_Term",
+          "highlightColor": "#0000ff"
         },
         {
           "id": 1753369969063,
@@ -426,7 +442,7 @@ payload_raw = '''
       ]
     }
   }
-]    
+]
 '''
 
 payload=json.loads(payload_raw)
@@ -436,10 +452,17 @@ url = f"{BASE_URL}/generate-from-layers"
 # POST 요청 보내기
 response = requests.post(url, json=payload)
 
-# 응답 확인
+# 응답 확인 및 출력 포맷팅
 if response.status_code == 200:
-    print("Success!")
-    print("Response JSON:", response.json())
+    print("✅ Success!")
+    try:
+        res_json = response.json()
+        print("📦 Response JSON:")
+        print(json.dumps(res_json, indent=2, ensure_ascii=False))  # 이쁘게 출력
+    except json.JSONDecodeError:
+        print("⚠️ JSON 디코딩 실패:")
+        print(response.text)
 else:
-    print("Failed with status code:", response.status_code)
-    print("Response:", response.text)
+    print(f"❌ Failed with status code: {response.status_code}")
+    print("🧾 Response Text:")
+    print(response.text)

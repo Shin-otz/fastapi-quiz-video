@@ -97,6 +97,13 @@ def apply_mapping_to_format(entry: dict) -> dict:
             elif layer_type == "audio":
                 layer["audioUrl"] = value
 
+        # ✅ highlight가 변수명일 경우, entry에서 실제 값으로 치환
+        highlight_key = layer.get("highlight", "")
+        if isinstance(highlight_key, str) and highlight_key in mapping_data:
+            hl_value = mapping_data[highlight_key]
+            if isinstance(hl_value, str):
+                layer["highlight"] = ",".join(v.strip() for v in hl_value.split(",") if v.strip())
+
     return format_data
 
 # 엔드포인트: 비디오 생성 없이 매핑된 포맷만 반환
@@ -280,6 +287,17 @@ async def generate_video_from_layer(entries: List[Dict[str, Any]] = Body(...)):
             mapped = entry["mappedFormat"]
             layers = mapped["layers"]
 
+            # ✅ "highlight": "Key_Term" 같이 변수명이 들어간 경우 → entry[Key_Term] 값으로 치환
+            for layer in layers:
+                if layer.get("type") == "text":
+                    hl_key = layer.get("highlight", "")
+                    if isinstance(hl_key, str) and hl_key in entry:
+                        value = entry[hl_key]
+                        if isinstance(value, str):
+                            # 예: "통일신라,문무왕" → 공백 제거 후 저장
+                            cleaned = ",".join([v.strip() for v in value.split(",") if v.strip()])
+                            layer["highlight"] = cleaned
+
             # 전체 타이밍 계산
             layers = recalculate_all_timings(
                 layers,
@@ -287,7 +305,6 @@ async def generate_video_from_layer(entries: List[Dict[str, Any]] = Body(...)):
                 used_files=used_files
             )
             mapped["layers"] = layers
-
 
             # 🎬 파일명 (UUID 기반 실제 저장용)
             filename = f"video_{uuid.uuid4().hex[:6]}.mp4"
@@ -310,8 +327,8 @@ async def generate_video_from_layer(entries: List[Dict[str, Any]] = Body(...)):
             results.append({
                 "status": "success",
                 "videoPath": result_path,
-                "filename": filename,                  # 실제 저장된 랜덤 파일명
-                "video_output_fn": video_output_fn,    # 논리적 ID 기반 이름
+                "filename": filename,
+                "video_output_fn": video_output_fn,
                 "duration": max(float(l.get("endTime", 0)) for l in layers),
             })
 
@@ -400,6 +417,7 @@ def make_video_from_layers(
                     print("❌ 이미지 클립 생성 실패:", e)
 
 
+
         elif t == "text":
             txt = layer.get("text", "")
             font_size = int(layer.get("fontSize", 30))
@@ -408,6 +426,13 @@ def make_video_from_layers(
             vertical_align = layer.get("verticalAlign", "top")
             line_height = float(layer.get("lineHeight", 1.0))
             wrapped = wrap_text_by_width(txt, font_path, font_size, max_width=w)
+
+            # ✅ 하이라이트 처리 추가
+            highlight_terms = []
+            highlight_raw = layer.get("highlight", "")
+            if isinstance(highlight_raw, str):
+               highlight_terms = [v.strip() for v in highlight_raw.split(",") if v.strip()]
+            highlight_color = layer.get("highlightColor", "#ff0000")
             img = draw_text_with_spacing(
                 wrapped,
                 font_path,
@@ -416,8 +441,11 @@ def make_video_from_layers(
                 (w, h),
                 spacing=line_height,
                 align=align,
-                vertical_align=vertical_align
+                vertical_align=vertical_align,
+                highlight_terms=highlight_terms,
+                highlight_color=highlight_color
             )
+
             clip = (ImageClip(np.array(img))
                     .with_start(start)
                     .with_duration(dur)
@@ -600,7 +628,9 @@ def draw_text_with_spacing(
     size: tuple,
     spacing: float = 1.0,
     align: str = "left",
-    vertical_align: str = "top"
+    vertical_align: str = "top",
+    highlight_terms: list[str] = None,
+    highlight_color: str = "#ff0000"
 ):
     width, height = size
     font = ImageFont.truetype(font_path, font_size)
@@ -620,6 +650,8 @@ def draw_text_with_spacing(
     img = Image.new("RGBA", (width, height), (255, 255, 255, 0))
     draw = ImageDraw.Draw(img)
 
+    highlight_terms = [term.strip() for term in (highlight_terms or [])]
+
     for line in lines:
         line_width = draw.textlength(line, font=font)
         if align == "center":
@@ -629,33 +661,26 @@ def draw_text_with_spacing(
         else:
             x = 0
 
-        draw.text((x, y), line, font=font, fill=color)
+        i = 0
+        while i < len(line):
+            match = None
+            for term in highlight_terms:
+                if line[i:].startswith(term):
+                    match = term
+                    break
+
+            if match:
+                draw.text((x, y), match, font=font, fill=highlight_color)
+                x += draw.textlength(match, font=font)
+                i += len(match)
+            else:
+                draw.text((x, y), line[i], font=font, fill=color)
+                x += draw.textlength(line[i], font=font)
+                i += 1
+
         y += line_height
 
     return img
-
-
-
-def wrap_text(text, max_chars=28):
-    """
-    입력 텍스트가 너무 길면 강제로 줄바꿈(\n) 추가
-    기본값: 18글자 넘으면 줄바꿈 (대략 가로 30%)
-    """
-    words = text.strip().split()
-    lines = []
-    current = ""
-
-    for word in words:
-        if len(current + " " + word) <= max_chars:
-            current += " " + word if current else word
-        else:
-            lines.append(current)
-            current = word
-    if current:
-        lines.append(current)
-
-    return '\n'.join(lines)
-
 def wrap_text_by_width(text, font_path, font_size, max_width):
     """
     주어진 텍스트를 font 기준 max_width 안에 맞게 줄바꿈 처리
