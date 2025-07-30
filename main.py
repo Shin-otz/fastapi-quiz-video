@@ -26,6 +26,7 @@ from moviepy.video.fx.FadeIn import FadeIn
 from moviepy.video.fx.FadeOut import FadeOut
 from moviepy.video.fx.CrossFadeIn import CrossFadeIn
 import sys
+from typing import Dict, Any
 
 from fastapi import Body
 from typing import Any
@@ -51,24 +52,47 @@ app = FastAPI()
 app.mount("/static", StaticFiles(directory="tmp"), name="static")
 
 
+# 기존 영상 생성 함수는 그대로 사용
+def make_video_from_layers(layers: List[dict], output_path: str):
+    # 예시용 함수: 실제 구현에 맞게 수정 필요
+    # layers 데이터를 기반으로 ffmpeg 처리 등 수행
+    print(f"Generating video at {output_path} with {len(layers)} layers")
+    return True  # 또는 처리 결과
+def apply_mapping_to_format(entry: dict) -> dict:
+    """
+    entry: metadata + fromat 포함된 dict
+    해당 entry의 'fromat' 내부의 layers에 대해 필요한 값을 채워넣음
+    """
+    mapping_data = entry.copy()
+    format_data = mapping_data.get("fromat", {})
+    layers = format_data.get("layers", [])
+
+    for layer in layers:
+        name = layer.get("name")
+        layer_type = layer.get("type")
+
+        if name in mapping_data:
+            value = mapping_data[name]
+            if layer_type == "image":
+                layer["imgUrl"] = value
+            elif layer_type == "text":
+                layer["text"] = value
+            elif layer_type == "audio":
+                layer["audioUrl"] = value
+
+    return format_data
+
+# 엔드포인트: 비디오 생성 없이 매핑된 포맷만 반환
 @app.post("/generate-from-layers")
-async def generate_from_layers(layers: List[dict] = Body(...)):
-    """
-    n8n에서 layers.json 포맷으로 보낸 데이터를 받아서 영상 생성
-    """
-    try:
-        output_file = f"tmp/generated_{uuid.uuid4().hex[:8]}.mp4"
-        result = make_video_from_layers(layers, output_file)
-        return {
+async def generate_from_layers(entries: List[Dict[str, Any]] = Body(...)):
+    results = []
+    for entry in entries:
+        updated_format = apply_mapping_to_format(entry)
+        results.append({
             "status": "ok",
-            "output": output_file,
-            "url": f"/static/{Path(output_file).name}"
-        }
-    except Exception as e:
-        logger.error(f"❌ 영상 생성 중 오류: {e}")
-        return {"status": "error", "message": str(e)}
-
-
+            "mappedFormat": updated_format
+        })
+    return results
 def make_video_from_layers(layers_data: List[dict], output_path: str):
     # 전체 시간 구하기
     total_duration = 0
