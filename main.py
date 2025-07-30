@@ -52,6 +52,7 @@ Path("tmp").mkdir(parents=True, exist_ok=True)
 
 FONT_MAP = {
     "Arial": "tmp/fonts/Arial.ttf",
+    "Comic Sans MS": "tmp/fonts/NanumMyeongjo-YetHangul.ttf",  # ✅ 명시적 추가
     "BMDOHYEON": "tmp/fonts/BMDOHYEON_ttf.ttf",
     "BMYEONSUNG": "tmp/fonts/BMYEONSUNG_ttf.ttf",
     "BMJUA": "tmp/fonts/BMJUA_ttf.ttf",
@@ -341,6 +342,7 @@ def supports_korean(font_path):
     except Exception:
         return False
 
+
 def make_video_from_layers(
     mapped_format: Dict[str, Any],
     output_path: str,
@@ -361,6 +363,10 @@ def make_video_from_layers(
     if used_files is None:
         used_files = set()
 
+    #font_path = os.path.abspath("tmp/NanumMyeongjo-YetHangul.ttf")
+    #font_path = os.path.abspath("tmp/fonts/BMYEONSUNG_ttf.ttf")
+
+
     for layer in layers_data:
         t = layer.get("type")
         start = float(layer.get("startTime", 0))
@@ -370,12 +376,13 @@ def make_video_from_layers(
         w = int(layer.get("width", 100))
         h = int(layer.get("height", 50))
         opacity = float(layer.get("backgroundOpacity", 1))
-
-        # ✅ 레이어별 폰트 설정
         font_family = layer.get("fontFamily", "Arial")
-        font_path = FONT_MAP.get(font_family, FONT_MAP["Arial"])
-        if not os.path.exists(font_path):
-            raise FileNotFoundError(f"❌ 폰트 파일이 존재하지 않습니다: {font_path}")
+
+        font_path = FONT_MAP.get(font_family)
+        if not font_path or not os.path.exists(font_path):
+            print(f"⚠️ 폰트 '{font_family}' 누락 또는 경로 오류 → 기본 Arial 대체")
+            font_path = FONT_MAP["Arial"]
+        font_path = os.path.abspath(font_path)
 
         if t == "image":
             img_url = layer.get("imgUrl")
@@ -391,6 +398,7 @@ def make_video_from_layers(
                     video_clips.append(clip)
                 except Exception as e:
                     print("❌ 이미지 클립 생성 실패:", e)
+
 
         elif t == "text":
             txt = layer.get("text", "")
@@ -449,6 +457,7 @@ def make_video_from_layers(
         final_audio.close()
 
     return output_path
+
 
 
 def check_ffmpeg_drawtext():
