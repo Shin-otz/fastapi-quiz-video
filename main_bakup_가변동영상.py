@@ -92,243 +92,37 @@ async def generate_from_layers(entries: List[Dict[str, Any]] = Body(...)):
         })
     return results
 
-# Step 1. 미디어 사전 다운로드 및 길이 계산
-def preprocess_layers(
-    layers: List[dict],
-    download_cache: dict = None,
-    used_files: set = None
-) -> List[dict]:
-    print("LAYER ***********")
-    print(layers)
-
-    if used_files is None:
-        used_files = set()
-    if download_cache is None:
-        download_cache = {}
-
-    for layer in layers:
-        t = layer.get("type")
-        layer["__duration"] = None
-        layer["__actual_path"] = None
-
-        if t == "audio":
-            audio_url = layer.get("audioUrl", "")
-            print("🔍 [AUDIO] 원본 URL:", audio_url)
-            path = download_if_remote(audio_url, cache=download_cache, used_files=used_files)
-            print("📥 다운로드된 오디오 경로:", path)
-
-            if path and Path(path).exists():
-                try:
-                    layer["__actual_path"] = path
-                    audio_dur = get_duration(path)
-                    layer["__duration"] = (
-                        float(layer.get("gapBefore", 0)) +
-                        audio_dur +
-                        float(layer.get("gapAfter", 0))
-                    )
-                    print(f"✅ 오디오 duration: {layer['__duration']}초")
-                except Exception as e:
-                    print("❌ 오디오 duration 계산 실패:", e)
-
-        elif t == "text":
-            mp3_url = layer.get("mp3Url", "")
-            print("🔍 [TEXT] mp3 URL:", mp3_url)
-
-            if mp3_url:
-                path = download_if_remote(mp3_url, cache=download_cache, used_files=used_files)
-                print("📥 다운로드된 mp3 경로:", path)
-
-                if path and Path(path).exists():
-                    try:
-                        layer["__actual_path"] = path
-                        mp3_dur = get_duration(path)
-                        layer["__duration"] = (
-                            float(layer.get("mp3PreGap", 0)) +
-                            mp3_dur +
-                            float(layer.get("mp3PostGap", 0))
-                        )
-                        print(f"✅ 텍스트 mp3 duration: {layer['__duration']}초")
-                    except Exception as e:
-                        print("❌ 텍스트 mp3 duration 계산 실패:", e)
-
-        elif t == "countdown":
-            layer["__duration"] = float(layer.get("countdownStart", 5))
-            print(f"⏱ 카운트다운 duration: {layer['__duration']}초")
-
-        elif "duration" in layer:
-            layer["__duration"] = float(layer.get("duration", 0))
-            print(f"📦 기본 duration 지정: {layer['__duration']}초")
-
-    return layers
-
-
-# Step 2. 부분 레이어 시간 정리
-def calculate_partial_timings(layers: List[dict], default_duration=3.0) -> None:
-    layer_map = {l["id"]: l for l in layers}
-    cursor = 0
-
-    for layer in layers:
-        if layer.get("timeMode") != "부분":
-            continue
-
-        start = cursor + float(layer.get("gapBefore", 0))
-
-        if layer.get("linkMode") == "relative" and layer.get("linkedLayerId"):
-            ref = layer_map.get(layer["linkedLayerId"])
-            if ref:
-                anchor = ref["endTime"] if layer["relativeAnchor"] == "end" else ref["startTime"]
-                start = float(anchor or 0) + float(layer.get("offset", 0))
-
-        dur = float(layer.get("__duration") or layer.get("duration", default_duration))
-        layer["startTime"] = round(start, 1)
-        layer["endTime"] = round(start + dur, 1)
-        layer["duration"] = round(dur, 1)
-
-        cursor = layer["endTime"] + float(layer.get("gapAfter", 0))
-
-# Step 3. 이미지 레이어 시간 연동 처리
-def resolve_image_timings(layers: List[dict]) -> None:
-    layer_map = {l["id"]: l for l in layers}
-
-    for layer in layers:
-        if layer["type"] == "image" and layer.get("timeMode") == "부분":
-            s = layer_map.get(layer.get("linkedStartLayerId"))
-            e = layer_map.get(layer.get("linkedEndLayerId"))
-            if s and e:
-                layer["startTime"] = round(s["startTime"], 1)
-                layer["endTime"] = round(e["endTime"], 1)
-                layer["duration"] = round(layer["endTime"] - layer["startTime"], 1)
-
-# Step 4. 전체 duration 계산
-def calculate_total_duration(layers: List[dict]) -> float:
-    valid = [float(l["endTime"]) for l in layers if "endTime" in l]
-    if not valid:
-        return 0.0
-    return max(valid)
-
-# Step 5. full 처리
-def apply_full_end_link(layers: List[dict], total_duration: float) -> None:
-    for layer in layers:
-        if layer.get("endLinkMode") == "full":
-            offset = float(layer.get("endOffset", 0))
-            layer["endTime"] = round(total_duration + offset, 1)
-            layer["duration"] = round(layer["endTime"] - layer["startTime"], 1)
-
-#Step 6. 전체 timeMode 처리
-def apply_full_duration_to_all(layers: List[dict], total_duration: float) -> None:
-    for layer in layers:
-        if layer.get("timeMode") == "전체":
-            layer["startTime"] = 0
-            layer["endTime"] = total_duration
-            layer["duration"] = total_duration
-
-@app.post("/debug-timings")
-async def debug_layer_timings(payload: List[Dict[str, Any]]):
-    print("📦 Payload 전체:", payload)
-
-    if not payload or "mappedFormat" not in payload[0]:
-        return {"error": "❌ 잘못된 payload 형식"}
-
-    mapped = payload[0]["mappedFormat"]
-    layers = mapped.get("layers", [])
-
-    print("🔢 레이어 수:", len(layers))
-    for layer in layers:
-        print(f"🧱 ID: {layer.get('id')}, Type: {layer.get('type')}, Duration: {layer.get('duration')}")
-
-    # 여기서 타이밍 계산 실행
-    updated_layers = recalculate_all_timings(layers)
-    total_duration = calculate_total_duration(updated_layers)
-
-    return {
-        "totalDuration": total_duration,
-        "layers": updated_layers
-    }
 
 @app.post("/generate-video-from-layer")
 async def generate_video_from_layer(entries: List[Dict[str, Any]] = Body(...)):
-    """
-    n8n으로부터 전달받은 JSON을 기반으로 영상 생성 + 임시 파일 정리 포함
-    """
     results = []
-    used_files = set()            # ✅ 전체 used_files 추적
-    download_cache = {}          # ✅ 캐시도 재사용
 
     for entry in entries:
-        try:
-            print("\n🚀 [START] 영상 생성 시작")
+        mapped = entry.get("mappedFormat", {})
+        output_path = f"tmp/generated_{uuid.uuid4().hex[:6]}.mp4"
 
-            mapped = entry["mappedFormat"]
-            layers = mapped["layers"]
+        # 예: 실제 비디오 생성 함수 호출
+        result_path = make_video_from_layers(mapped, output_path)
 
-            # 전체 시간 및 연결 정보 계산
-            layers = recalculate_all_timings(
-                layers,
-                download_cache=download_cache,
-                used_files=used_files
-            )
-            mapped["layers"] = layers
-
-            # 파일명 및 경로 지정
-            filename = f"video_{uuid.uuid4().hex[:6]}.mp4"
-            output_path = os.path.join("tmp", filename)
-
-            # 🎬 영상 생성
-            result_path = make_video_from_layers(
-                mapped,
-                output_path,
-                download_cache=download_cache,
-                used_files=used_files
-            )
-
-            # ✅ 응답 구성
-            results.append({
-                "status": "success",
-                "videoPath": result_path,
-                "filename": filename,
-                "duration": max(float(l.get("endTime", 0)) for l in layers),
-            })
-
-        except Exception as e:
-            print(f"❌ 영상 생성 실패: {e}")
-            results.append({
-                "status": "error",
-                "message": str(e)
-            })
-
-    # ✅ 모든 사용된 임시 파일 정리
-    print("\n🧹 사용된 임시 파일 삭제 시작")
-    for path in used_files:
-        try:
-            f = Path(path)
-            if f.exists():
-                f.unlink()
-                print(f"🗑️ 삭제 완료: {f}")
-        except Exception as e:
-            print(f"⚠️ 삭제 실패: {path} → {e}")
+        results.append({
+            "status": "ok",
+            "output": result_path,
+            "url": f"/static/{Path(result_path).name}"
+        })
 
     return results
 
-
-def make_video_from_layers(
-    mapped_format: Dict[str, Any],
-    output_path: str,
-    download_cache: dict = None,
-    used_files: set = None
-) -> str:
+def make_video_from_layers(mapped_format: Dict[str, Any], output_path: str):
     layers_data = mapped_format["layers"]
     canvas_ratio = mapped_format.get("canvasRatio", "1080x720")
     canvas_width, canvas_height = map(int, canvas_ratio.split("x"))
+    print(canvas_ratio)
     total_duration = max(float(l.get("endTime", 0)) for l in layers_data)
     base_clip = ColorClip((canvas_width, canvas_height), color=(255, 255, 255)).with_duration(total_duration)
 
     video_clips = []
     audio_clips = []
-
-    if download_cache is None:
-        download_cache = {}
-    if used_files is None:
-        used_files = set()
+    temp_files = []
 
     font_path = os.path.abspath("tmp/NanumMyeongjo-YetHangul.ttf")
     if not os.path.exists(font_path):
@@ -346,7 +140,10 @@ def make_video_from_layers(
 
         if t == "image":
             img_url = layer.get("imgUrl")
-            img_path = download_if_remote(img_url, cache=download_cache, used_files=used_files)
+            img_path = download_if_remote(img_url)
+            print("🔍 이미지 URL:", img_url)
+            print("📥 다운로드된 이미지 경로:", img_path)
+
             if img_path and os.path.exists(img_path):
                 try:
                     clip = (ImageClip(img_path)
@@ -356,8 +153,11 @@ def make_video_from_layers(
                             .with_duration(dur)
                             .with_position((x, y)))
                     video_clips.append(clip)
+                    print("✅ 이미지 클립 추가 완료:", img_path)
                 except Exception as e:
                     print("❌ 이미지 클립 생성 실패:", e)
+            else:
+                print("⚠️ 이미지 파일 없음 또는 다운로드 실패:", img_path)
 
         elif t == "text":
             txt = layer.get("text", "")
@@ -376,6 +176,7 @@ def make_video_from_layers(
             count = int(layer.get("countdownStart", 5))
             font_size = int(layer.get("fontSize", 50))
             color = layer.get("color", "red")
+
             for i in range(count, 0, -1):
                 img = draw_text_with_spacing(str(i), font_path, font_size, color, (w, h), spacing=1, align='center')
                 tclip = (ImageClip(np.array(img))
@@ -383,15 +184,16 @@ def make_video_from_layers(
                          .with_duration(1)
                          .with_position((x, y)))
                 video_clips.append(tclip)
+
             beep_path = f"tmp/beep_{uuid.uuid4().hex[:6]}.mp3"
             generate_beep_sequence(count, beep_path)
             audio_clips.append(AudioFileClip(beep_path).with_start(start))
-            used_files.add(beep_path)
+            temp_files.append(beep_path)
 
         elif t == "audio":
-            audio_url = layer.get("audioUrl", "").strip()
-            audio_path = download_if_remote(audio_url, cache=download_cache, used_files=used_files)
-            if audio_path and os.path.exists(audio_path):
+            audio_url = layer.get("audioUrl")
+            audio_path = download_if_remote(audio_url)
+            if audio_path:
                 aclip = AudioFileClip(audio_path).with_start(start)
                 audio_clips.append(aclip)
 
@@ -400,14 +202,13 @@ def make_video_from_layers(
     output_path = os.path.abspath(output_path)
     final_video.write_videofile(output_path, fps=25, codec='libx264', audio_codec='aac')
 
-    final_video.close()
-    if final_audio:
-        final_audio.close()
+    for path in temp_files:
+        try:
+            Path(path).unlink()
+        except Exception as e:
+            print(f"⚠️ 삭제 실패: {path} → {e}")
 
     return output_path
-
-
-
 
 
 def check_ffmpeg_drawtext():
@@ -440,48 +241,6 @@ def generate_beep_sequence(beep_seconds: int, output_path: str):
     countdown_beep = one_beep * beep_seconds
     countdown_beep.export(output_path, format="mp3")
     return output_path
-
-def recalculate_all_timings(
-    layers: List[dict],
-    default_duration: float = 3.0,
-    download_cache: dict = None,
-    used_files: set = None
-) -> List[dict]:
-    """
-    전체 타이밍 계산 파이프라인 (preprocess → timings → total duration → full 처리)
-    """
-    if download_cache is None:
-        download_cache = {}
-    if used_files is None:
-        used_files = set()
-
-    print("\n🔍 [STEP 1] 미디어 사전 다운로드 및 길이 계산")
-    layers = preprocess_layers(layers, download_cache=download_cache, used_files=used_files)
-
-    print("\n🧮 [STEP 2] '부분' 레이어 시간 정리")
-    calculate_partial_timings(layers, default_duration)
-
-    print("\n🖼️ [STEP 3] 이미지 레이어 시간 연동")
-    resolve_image_timings(layers)
-
-    print("\n⏱️ [STEP 4] 전체 영상 총 시간 계산")
-    total_duration = calculate_total_duration(layers)
-    print(f"📏 전체 영상 길이: {total_duration:.1f}초")
-
-    print("\n🔁 [STEP 5] endLinkMode = full 처리")
-    apply_full_end_link(layers, total_duration)
-
-    print("\n🌐 [STEP 6] timeMode = 전체 처리")
-    apply_full_duration_to_all(layers, total_duration)
-
-    print("\n✅ [RESULT] 레이어별 타이밍 정보")
-    for i, l in enumerate(layers):
-        print(f"{i+1:2}. 🧩 {l.get('type','?')} | {l.get('name','(no-name)'):<15} "
-              f"→ ⏱ {l.get('startTime', '?')} ~ {l.get('endTime', '?')}  "
-              f"(dur: {l.get('duration', '?')})")
-
-    return layers
-
 
 def recalculate_layer_timings_for_backend(layers: List[dict], default_duration: float = 3.0) -> List[dict]:
     """
@@ -646,60 +405,28 @@ def convert_drive_url(url: str) -> str:
         return url  # 변환 실패하면 원본 반환
     file_id = match.group(1)
     return f"https://drive.google.com/uc?export=download&id={file_id}"
-def download_if_remote(
-    url: str,
-    cache: dict = None,
-    used_files: set = None
-) -> str:
-    if not url:
-        return ""
 
-    # Google Drive 변환
-    if "drive.google.com" in url:
-        url = convert_drive_url(url)
+def download_if_remote(url: str) -> str:
+    if url.startswith("http://") or url.startswith("https://"):
+        # ✅ Google Drive 링크 처리
+        if "drive.google.com" in url:
+            url = convert_drive_url(url)
 
-    if cache is not None and url in cache:
-        print(f"♻️ [HIT] 캐시 재사용: {url} → {cache[url]}")
-        return cache[url]
-
-    # 파일 확장자 추출
-    ext = os.path.splitext(urlparse(url).path)[-1]
-    if not ext or len(ext) > 6:
-        ext = ".bin"
-
-    # Google Drive ID를 파일명으로
-    unique_name = extract_drive_id(url) or uuid.uuid4().hex[:6]
-    local_path = f"tmp/{unique_name}{ext}"
-
-    # 이미 존재하면 재사용
-    if Path(local_path).exists():
-        print(f"♻️ [HIT] 파일 존재 재사용: {local_path}")
-        if cache is not None:
-            cache[url] = local_path
-        if used_files is not None:
-            used_files.add(local_path)
-        return local_path
-
-    try:
-        print(f"📥 다운로드 시작: {url}")
-        with requests.get(url, stream=True) as r:
-            r.raise_for_status()
-            with open(local_path, 'wb') as f:
-                for chunk in r.iter_content(chunk_size=8192):
-                    f.write(chunk)
-        print(f"✅ 다운로드 완료: {local_path}")
-
-        if cache is not None:
-            cache[url] = local_path
-        if used_files is not None:
-            used_files.add(local_path)
-
-        return local_path
-
-    except Exception as e:
-        print(f"❌ 다운로드 실패: {url} → {e}")
-        return ""
-
+        try:
+            ext = os.path.splitext(urlparse(url).path)[-1]
+            if not ext or len(ext) > 6:  # 확장자 없거나 너무 길면 .bin 처리
+                ext = ".bin"
+            temp_path = f"tmp/{uuid.uuid4().hex[:6]}{ext}"
+            with requests.get(url, stream=True) as r:
+                r.raise_for_status()
+                with open(temp_path, 'wb') as f:
+                    for chunk in r.iter_content(chunk_size=8192):
+                        f.write(chunk)
+            return temp_path if os.path.exists(temp_path) else ""
+        except Exception as e:
+            print("❌ 다운로드 실패:", e)
+            return ""
+    return url if os.path.exists(url) else ""
 
 def make_video_from_mapped_format(payload: List[Dict[str, Any]], output_path: str):
     entry = payload[0]  # 첫 번째 항목만 처리
@@ -1171,6 +898,7 @@ def make_next_mp4(data_, output_path):
 def hello():
     logger.info("👋 INFO 로그 작동!")
     logger.debug("🐛 DEBUG 로그 작동!")
+    file = Path(-audio_file).exists()
     return {"message": "hello"}
 
 
