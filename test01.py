@@ -6,7 +6,7 @@ BASE_URL = "http://127.0.0.1:8080"
 
 # 테스트할 데이터
 payload_raw = '''
-      [
+[
   {
     "status": "ok",
     "mappedFormat": {
@@ -201,9 +201,9 @@ payload_raw = '''
           "duration": 5,
           "gapBefore": 0,
           "gapAfter": 0,
-          "x": 474.9989021346534,
-          "y": 356.0062454607974,
-          "width": 200,
+          "x": 451.99874722113844,
+          "y": 339.0059387694992,
+          "width": 50,
           "height": 50,
           "backgroundColor": "#ffffff",
           "backgroundOpacity": 0,
@@ -221,7 +221,9 @@ payload_raw = '''
           "endOffset": 0,
           "countdownStart": 5,
           "fontSize": 50,
-          "color": "#ff0000"
+          "color": "#ff0000",
+          "textAlign": "center",
+          "verticalAlign": "middle"
         },
         {
           "id": 1753287427893,

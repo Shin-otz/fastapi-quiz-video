@@ -367,7 +367,7 @@ def make_video_from_layers(
             align = layer.get("textAlign", "left")
             vertical_align = layer.get("verticalAlign", "top")
             line_height = float(layer.get("lineHeight", 1.0))
-            wrapped = wrap_text(txt)
+            wrapped = wrap_text_by_width(txt, font_path, font_size, max_width=w)
             img = draw_text_with_spacing(
                 wrapped,
                 font_path,
@@ -610,6 +610,32 @@ def wrap_text(text, max_chars=28):
             current += " " + word if current else word
         else:
             lines.append(current)
+            current = word
+    if current:
+        lines.append(current)
+
+    return '\n'.join(lines)
+
+def wrap_text_by_width(text, font_path, font_size, max_width):
+    """
+    주어진 텍스트를 font 기준 max_width 안에 맞게 줄바꿈 처리
+    """
+    font = ImageFont.truetype(font_path, font_size)
+    dummy_img = Image.new("RGB", (10, 10))
+    draw = ImageDraw.Draw(dummy_img)
+
+    words = text.strip().split()
+    lines = []
+    current = ""
+
+    for word in words:
+        test_line = f"{current} {word}".strip()
+        width = draw.textlength(test_line, font=font)
+        if width <= max_width:
+            current = test_line
+        else:
+            if current:
+                lines.append(current)
             current = word
     if current:
         lines.append(current)
